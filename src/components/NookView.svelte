@@ -5,11 +5,14 @@
   import Adopt from './Adopt.svelte';
   import FoodIcon from './FoodIcon.svelte';
   import NeedMeter from './NeedMeter.svelte';
+  import PlaySheet from './PlaySheet.svelte';
+  import type { Game } from '../domain/games';
   import Icon from './ui/Icon.svelte';
   import { FOODS, canHave, type Food } from '../domain/foods';
   import { NEEDS, type PetEvent, type Refusal } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { cheer } from '../lib/delight';
+  import { snapshot } from '../lib/snapshot';
   import Pet from '../pet/Pet.svelte';
   import { petGestures } from '../pet/gestures';
   import { buzz } from '../platform/haptics';
@@ -35,6 +38,7 @@
   /** A food being dragged to the pet, and where the finger is. */
   let dragging = $state<{ food: Food; x: number; y: number } | null>(null);
   let cuddling = $state(false);
+  let playOpen = $state(false);
   let bubbles = $state<{ id: number; x: number; y: number }[]>([]);
   /** Turned away after too much tickling, until then. */
   let sulkUntil = 0;
@@ -280,6 +284,32 @@
     }
   }
 
+  let snapping = $state(false);
+  async function picture() {
+    const svg = rig?.element();
+    if (!svg || !pet || snapping) return;
+    snapping = true;
+    try {
+      const caption = t('nook.pictureCaption', { stage: t(`stage.${pet.stage}` as MessageKey), date: new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) });
+      await petState.addPhoto(await snapshot(svg, name, caption));
+      chirp('happy');
+      ui.notify(t('nook.pictureTaken'), 'success');
+    } finally {
+      snapping = false;
+    }
+  }
+
+  async function played(game: Game, score: number) {
+    playOpen = false;
+    const result = await petState.play(game, score);
+    if (!result.ok) return refused(result.why);
+    hold('happy');
+    move('hop');
+    chirp('happy');
+    const verdict = t(score >= 0.8 ? 'game.result.great' : score >= 0.4 ? 'game.result.good' : 'game.result.ok');
+    ui.notify(t('game.done', { name, result: verdict }), 'success');
+  }
+
   function wait(ms: number) {
     return new Promise((r) => setTimeout(r, ms));
   }
@@ -348,6 +378,11 @@
     <Adopt />
   {:else}
     <section class="panel room" class:is-night={pet.asleep} aria-label={t('tabs.nook')} onpointermove={follow} onpointerleave={() => (look = { x: 0, y: 0 })}>
+      {#if !pet.awayUntil}
+        <button type="button" class="btn-icon snap" id="btnPicture" disabled={snapping} aria-label={t('nook.picture')} title={t('nook.picture')} onclick={picture}>
+          <Icon name="camera" size={20} />
+        </button>
+      {/if}
       <div class="pet-frame" bind:this={frame}>
         <button
           type="button"
@@ -427,7 +462,7 @@
         <button type="button" class="btn btn-secondary" id="btnFeed" disabled={busy} aria-expanded={trayOpen} aria-controls="foodTray" onclick={() => (pet.asleep ? refused('asleep') : (trayOpen = !trayOpen))}>
           <Icon name="feed" size={18} />{t('care.feed')}
         </button>
-        <button type="button" class="btn btn-secondary" id="btnPlay" disabled={busy} onclick={() => care(() => petState.play('toss', 0.5), 'done.played', () => (hold('happy'), move('hop')))}>
+        <button type="button" class="btn btn-secondary" id="btnPlay" disabled={busy} onclick={() => (pet.asleep ? refused('asleep') : pet.needs.energy < 0.1 ? refused('too-tired') : (playOpen = true))}>
           <Icon name="play" size={18} />{t('care.play')}
         </button>
         <button type="button" class="btn btn-secondary" id="btnClean" disabled={busy} onclick={() => care(() => petState.clean(), 'done.cleaned', () => (hold('happy'), move('wiggle')))}>
@@ -446,6 +481,10 @@
   {/if}
 </div>
 
+{#if playOpen && pet}
+  <PlaySheet {name} stage={pet.stage} form={pet.form} onresult={played} onclose={() => (playOpen = false)} />
+{/if}
+
 {#if dragging}
   <div class="drag-food" style:left="{dragging.x}px" style:top="{dragging.y}px" aria-hidden="true"><FoodIcon food={dragging.food} size={48} /></div>
 {/if}
@@ -463,6 +502,12 @@
   /* The room dims at bedtime, in both themes. */
   .room.is-night {
     background-color: rgba(var(--shadow-rgb), calc(0.35 * var(--shadow-strength)));
+  }
+  .snap {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    z-index: 1;
   }
   .pet-frame {
     position: relative;

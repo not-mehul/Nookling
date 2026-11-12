@@ -2,7 +2,9 @@
   import { Switch } from 'dusk-dawn';
   import type { ThemeSetting } from '../domain/settings';
   import { t, type MessageKey } from '../i18n/index.svelte';
-  import { isNative } from '../platform/output';
+  import { BACKUP_PREFIX, buildBackupZip, parseBackup, type BackupData } from '../lib/backup';
+  import { datedName, isNative, saveFile } from '../platform/output';
+  import Sheet from './ui/Sheet.svelte';
   import { petState } from '../state/pet.svelte';
   import { reminders } from '../state/reminders.svelte';
   import { settings } from '../state/settings.svelte';
@@ -28,6 +30,49 @@
     if (!newName.trim() || newName.trim() === pet?.name) return;
     await petState.rename(newName);
     ui.notify(t('settings.renamed', { name: newName.trim() }), 'success');
+  }
+
+  let pending = $state.raw<BackupData | null>(null);
+  let picker = $state<HTMLInputElement>();
+  let saving = $state(false);
+
+  async function backup() {
+    const all = await petState.everything();
+    if (!all || saving) return;
+    saving = true;
+    try {
+      const now = new Date();
+      const bytes = await buildBackupZip(all.pet, all.log, settings.current, all.photos, now);
+      const { savedTo } = await saveFile({ name: datedName(BACKUP_PREFIX, 'zip', now, true), data: bytes, mime: 'application/zip' });
+      settings.update({ lastBackupAt: now.toISOString() });
+      ui.notify(t('settings.backedUp', { where: savedTo ?? t('settings.backup') }), 'success');
+    } catch (err) {
+      console.error(err);
+      ui.notify(t('settings.backupFailed'), 'error');
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function chosen(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      pending = await parseBackup(new Uint8Array(await file.arrayBuffer()));
+    } catch {
+      ui.notify(t('settings.notBackup'), 'error');
+    }
+  }
+
+  async function restore() {
+    const data = pending;
+    pending = null;
+    if (!data) return;
+    await petState.restore(data);
+    if (data.settings) settings.update({ ...data.settings, lastBackupAt: settings.current.lastBackupAt });
+    ui.notify(t('settings.restored', { name: data.pet.name }), 'success');
   }
 
   const THEMES: { value: ThemeSetting; key: MessageKey }[] = [
@@ -122,6 +167,16 @@
       <Switch id="switchHaptics" checked={settings.current.haptics} label={t('settings.haptics')} hint={t('settings.hapticsHint')} onchange={(on) => settings.update({ haptics: on })} />
     </div>
   </div>
+  <div class="panel" id="panelData">
+    <div class="section-head"><h2>{t('settings.data')}</h2></div>
+    <p class="t-hint">{t('settings.dataHint', { name: pet?.name ?? 'your nookling' })}</p>
+    <p class="t-hint">{settings.current.lastBackupAt ? t('settings.lastBackup', { date: new Date(settings.current.lastBackupAt).toLocaleString(undefined, { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }) }) : t('settings.neverBackedUp')}</p>
+    <div class="data-actions">
+      <button type="button" class="btn btn-secondary" id="btnBackup" disabled={!pet || saving} onclick={backup}>{t('settings.backup')}</button>
+      <button type="button" class="btn btn-muted" id="btnRestore" onclick={() => picker?.click()}>{t('settings.restore')}</button>
+      <input bind:this={picker} id="restoreFile" type="file" accept=".zip,application/zip" hidden onchange={chosen} />
+    </div>
+  </div>
   <div class="panel">
     <div class="section-head"><h2>{t('settings.about')}</h2></div>
     <p class="t-hint">Nookling · {t('settings.version', { version: __APP_VERSION__ })}</p>
@@ -130,7 +185,23 @@
   </div>
 </div>
 
+{#if pending}
+  {@const incoming = pending}
+  <Sheet title={t('settings.restoreTitle', { name: incoming.pet.name })} onclose={() => (pending = null)}>
+    <p class="t-hint">{t('settings.restoreText', { name: incoming.pet.name, current: pet?.name ?? 'nothing' })}</p>
+    <div class="data-actions">
+      <button type="button" class="btn btn-primary" id="btnRestoreConfirm" onclick={restore}>{t('settings.restoreConfirm')}</button>
+      <button type="button" class="btn btn-muted" onclick={() => (pending = null)}>{t('settings.cancel')}</button>
+    </div>
+  </Sheet>
+{/if}
+
 <style>
+  .data-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
   .setting-row {
     display: flex;
     align-items: center;

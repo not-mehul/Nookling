@@ -19,8 +19,59 @@ test('adopts, hatches and cares for a nookling', async ({ page }) => {
   await page.locator('[data-food="oat-cake"]').click();
   await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip ate the oat cake.');
 
+});
+
+test('plays Echo, takes a picture and finds both in the Journal', async ({ page }) => {
+  await hatch(page);
+  const toast = page.locator('.toast-region[role="status"]');
   await page.locator('#btnPlay').click();
-  await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip had a lovely time.');
+  await page.locator('[data-game="echo"]').click();
+  // A wrong move ends the game at once; the score still counts as play.
+  await expect(page.locator('[data-move="spin"]')).toBeEnabled({ timeout: 10_000 });
+  for (const move of ['spin', 'spin', 'spin']) {
+    if (await page.locator('[data-move="spin"]').isEnabled()) await page.locator(`[data-move="${move}"]`).click();
+  }
+  await expect(toast).toContainText('Pip had a lovely time.', { timeout: 10_000 });
+
+  await page.locator('#btnPicture').click();
+  await expect(toast).toContainText('Picture saved to the Journal.');
+
+  await page.locator('#tabJournal').click();
+  await expect(page.locator('#journalAbout')).toContainText('About Pip');
+  await expect(page.locator('#journalMilestones')).toContainText('Hatched.');
+  await expect(page.locator('#journalAlbum img')).toHaveCount(1);
+  await expect(page.locator('#journalLog [data-kind="played"]')).toContainText('Played echo.');
+});
+
+test('hide and seek runs five rounds', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#btnPlay').click();
+  await page.locator('[data-game="seek"]').click();
+  for (let round = 0; round < 5; round++) {
+    await expect(page.locator('[data-spot="cushion"]')).toBeEnabled({ timeout: 5_000 });
+    await page.locator('[data-spot="cushion"]').click();
+  }
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip had a lovely time.', { timeout: 10_000 });
+});
+
+test('backs up and restores', async ({ page }) => {
+  await hatch(page, 'Moss');
+  await page.locator('#tabSettings').click();
+  const download = page.waitForEvent('download');
+  await page.locator('#btnBackup').click();
+  const file = await (await download).path();
+  await expect(page.locator('#panelData')).toContainText('Last backed up');
+
+  await page.locator('#renameInput').fill('Fern');
+  await page.locator('#renameInput').press('Enter');
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Hello, Fern.');
+
+  await page.locator('#restoreFile').setInputFiles(file);
+  await expect(page.locator('#btnRestoreConfirm')).toBeVisible();
+  await page.locator('#btnRestoreConfirm').click();
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Moss is home.');
+  await page.locator('#tabNook').click();
+  await expect(page.locator('#statusLine')).toContainText('Moss');
 });
 
 test('keeps the pet across a reload', async ({ page }) => {
