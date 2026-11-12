@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { IconTabs, ThemeToggle, Toast } from 'dusk-dawn';
+  import { IconTabs, ThemeToggle, Toast, konami, play, secretTaps } from 'dusk-dawn';
+  import { cheer, hatchEgg } from './lib/delight';
   import Icon from './components/ui/Icon.svelte';
   import JournalView from './components/JournalView.svelte';
   import NookView from './components/NookView.svelte';
@@ -24,6 +25,24 @@
   $effect(() => applyTheme(settings.current.theme));
   $effect(() => setSound(settings.current.sound));
   $effect(() => setHaptics(settings.current.haptics));
+  // Easter eggs (style.md §11.3). The Konami code: a somersault and sparks.
+  // Seven taps on the title: the fluff tickles its nose.
+  let title = $state<HTMLElement>();
+  let tricks = 0;
+  $effect(() =>
+    konami(() => {
+      ui.go('nook');
+      ui.trick = { kind: 'konami', n: ++tricks };
+      hatchEgg('konami', t('egg.konami', { name: petState.pet?.name ?? 'Nookling' }));
+    }),
+  );
+  function sneeze() {
+    play(title, 'jelly');
+    cheer(title, { count: 40, shapes: ['puffy', 'circle'], spread: 0.8 });
+    if (ui.tab === 'nook') ui.trick = { kind: 'sneeze', n: ++tricks };
+    hatchEgg('title', t('egg.title'));
+  }
+
   // A new bedtime or Gentle mode: bring the pet up to now so the change shows at once.
   let rules = $state('');
   $effect(() => {
@@ -50,7 +69,7 @@
 <div class="container">
   <header class="site-header compact">
     <div class="site-title">
-      <h1 class="t-page-title"><em>Nookling</em></h1>
+      <h1 class="t-page-title" bind:this={title} use:secretTaps={{ count: 7, onunlock: sneeze }}><em>Nookling</em></h1>
     </div>
     <ThemeToggle dawn={!shown.dark} label={t('settings.dawnSwitch')} ontoggle={() => settings.update({ theme: toggledTheme() })} />
   </header>

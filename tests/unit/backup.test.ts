@@ -20,7 +20,7 @@ describe('backups', () => {
     expect(back.settings?.bedtime).toBe('23:00');
     expect(back.settings?.lastBackupAt).toBeUndefined();
     expect(back.photos).toHaveLength(1);
-    expect(new Uint8Array(await back.photos[0].image.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]));
+    expect(new Uint8Array(await back.photos[0]!.image.arrayBuffer())).toEqual(new Uint8Array([137, 80, 78, 71]));
   });
 
   it('refuses anything that is not a Nookling backup', async () => {

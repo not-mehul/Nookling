@@ -61,6 +61,8 @@ export function normalisePet(raw: unknown): Pet | null {
     treats: Array.isArray(r.treats) ? r.treats.filter((x): x is number => typeof x === 'number') : [],
     awayUntil: time(r.awayUntil),
     care,
+    goodSince: time(r.goodSince),
+    goodDayAt: time(r.goodDayAt),
     asOf: num(r.asOf, createdAt),
   };
 }

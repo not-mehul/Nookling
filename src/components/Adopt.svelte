@@ -3,6 +3,7 @@
   import Icon from './ui/Icon.svelte';
   import { t } from '../i18n/index.svelte';
   import { petState } from '../state/pet.svelte';
+  import { siblingEgg } from '../lib/delight';
 
   let name = $state('');
   let busy = $state(false);
@@ -12,6 +13,7 @@
     if (busy) return;
     busy = true;
     await petState.adopt(name || t('adopt.placeholder'));
+    siblingEgg(name);
     busy = false;
   }
 </script>

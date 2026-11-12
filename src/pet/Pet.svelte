@@ -6,7 +6,7 @@
   // One-off movements come from `react()`, on the Web Animations API.
   import { onMount } from 'svelte';
   import { BODY, EYE, ellipsePath, fluffPath, starPath } from './geometry';
-  import { furToken, type Expression, type Form, type Reaction, type Stage } from './types';
+  import { furToken, type Expression, type Form, type Prop, type Reaction, type Stage } from './types';
 
   interface Props {
     stage?: Stage;
@@ -25,6 +25,8 @@
     live?: boolean;
     /** What a screen reader hears: the pet's status line. */
     label: string;
+    /** What it wears or has beside it. */
+    wear?: readonly Prop[];
   }
 
   let {
@@ -38,6 +40,7 @@
     unwell = false,
     live = true,
     label,
+    wear = [],
   }: Props = $props();
 
   const uid = `pet${Math.random().toString(36).slice(2, 8)}`;
@@ -285,8 +288,53 @@
             <ellipse class="tongue" cx="0" cy="36.5" rx="5.5" ry="3" />
           {/if}
         </g>
+        {#if wear.includes('bookshelf')}
+          <g class="prop glasses">
+            <circle cx={-EYE.x} cy={EYE.y} r="31" />
+            <circle cx={EYE.x} cy={EYE.y} r="31" />
+            <path d="M-3 -14Q0 -18 3 -14M-60 -16L-70 -22M60 -16L70 -22" />
+          </g>
+        {/if}
+        {#if wear.includes('mise')}
+          <g class="prop hat">
+            <path d="M-30 -60L-28 -76H28L30 -60Q0 -54 -30 -60Z" />
+            <path d="M-28 -76Q-46 -84 -38 -100Q-30 -114 -14 -106Q-8 -124 10 -118Q26 -114 22 -102Q42 -106 42 -90Q42 -78 28 -76Z" />
+          </g>
+        {/if}
+        {#if wear.includes('ledger')}
+          <g class="prop visor">
+            <path d="M-56 -44Q0 -78 56 -44L52 -36Q0 -66 -52 -36Z" />
+            <path d="M-34 -50Q0 -66 34 -50Q38 -36 0 -40Q-38 -36 -34 -50Z" />
+          </g>
+        {/if}
+        {#if wear.includes('colophon')}
+          <g class="prop quill">
+            <path d="M48 -48Q76 -100 104 -112Q92 -80 56 -44Z" />
+            <path d="M52 -46L96 -104" class="prop-line" />
+          </g>
+        {/if}
       </g>
 
+      {#if wear.includes('waymark')}
+        <g class="prop pin">
+          <path d="M84 -64Q70 -78 70 -92A14 14 0 0 1 98 -92Q98 -78 84 -64Z" />
+          <circle cx="84" cy="-92" r="5" class="prop-hole" />
+        </g>
+      {/if}
+      {#if wear.includes('rosetta')}
+        <g class="prop bubble">
+          <path d="M-104 -96H-58Q-50 -96 -50 -88V-72Q-50 -64 -58 -64H-70L-80 -54V-64H-104Q-112 -64 -112 -72V-88Q-112 -96 -104 -96Z" />
+          <circle cx="-94" cy="-80" r="3" class="prop-dot" /><circle cx="-81" cy="-80" r="3" class="prop-dot" /><circle cx="-68" cy="-80" r="3" class="prop-dot" />
+        </g>
+      {/if}
+      {#if wear.includes('cake')}
+        <g class="prop cake">
+          <path d="M-112 84V62Q-112 56 -106 56H-74Q-68 56 -68 62V84Z" />
+          <path d="M-112 66Q-104 72 -98 66Q-90 72 -82 66Q-76 72 -68 66" class="prop-icing" />
+          <rect x="-92" y="38" width="4" height="18" rx="2" class="prop-candle" />
+          <path d="M-90 26Q-84 32 -90 37Q-96 32 -90 26Z" class="prop-flame" />
+        </g>
+      {/if}
       {#if stage === 'grown' && form === 'dreamer'}
         <path class="star" d={starPath(82, -70, 11)} />
       {/if}
@@ -313,6 +361,60 @@
   .breath {
     transform-box: view-box;
     transform-origin: 0 84px;
+  }
+  .prop path,
+  .prop circle,
+  .prop rect {
+    stroke: var(--pet-outline);
+    stroke-width: 2.4;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .glasses circle {
+    fill: var(--pet-eye);
+    fill-opacity: 0.18;
+  }
+  .glasses path {
+    fill: none;
+  }
+  .hat path {
+    fill: var(--pet-eye);
+  }
+  .visor path {
+    fill: var(--pet-food-leaf);
+    fill-opacity: 0.85;
+  }
+  .quill path {
+    fill: var(--pet-fur-cream);
+  }
+  .prop .prop-line {
+    fill: none;
+    stroke-width: 1.6;
+  }
+  .pin path {
+    fill: var(--pet-food-berry);
+  }
+  .pin .prop-hole,
+  .bubble path {
+    fill: var(--pet-eye);
+  }
+  .bubble .prop-dot {
+    fill: var(--pet-outline);
+    stroke: none;
+  }
+  .cake path {
+    fill: var(--pet-food-crust);
+  }
+  .cake .prop-icing {
+    fill: none;
+    stroke: var(--pet-eye);
+    stroke-width: 4;
+  }
+  .cake .prop-candle {
+    fill: var(--pet-food-berry);
+  }
+  .cake .prop-flame {
+    fill: var(--pet-food-honey);
   }
   .shadow {
     fill: var(--pet-fur-shade);

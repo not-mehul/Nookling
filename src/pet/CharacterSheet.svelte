@@ -2,6 +2,8 @@
   // Every face, stage and form of the nookling on one page, still (no
   // breathing), for review. Rendered to docs/ by `npm run sheet`.
   import Pet from './Pet.svelte';
+  import type { Prop } from './types';
+  const PROPS: Prop[] = ['mise', 'bookshelf', 'waymark', 'ledger', 'colophon', 'rosetta', 'cake'];
   import { EXPRESSIONS, FORMS, type Expression, type Form, type Stage } from './types';
 
   const STAGES: { stage: Stage; name: string }[] = [
@@ -65,6 +67,17 @@
         <figure>
           <Pet stage="grown" {form} expression="happy" glow={0.8} live={false} label={NAMES[form]} />
           <figcaption>{NAMES[form]}</figcaption>
+        </figure>
+      {/each}
+    </div>
+  </section>
+  <section class="panel">
+    <h2 class="t-section-heading">Easter eggs</h2>
+    <div class="grid">
+      {#each PROPS as p (p)}
+        <figure>
+          <Pet expression="happy" glow={0.7} wear={[p]} live={false} label={p} />
+          <figcaption>{p === 'cake' ? 'Hatch day' : `Named ${p}`}</figcaption>
         </figure>
       {/each}
     </div>

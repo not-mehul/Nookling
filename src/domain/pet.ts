@@ -76,6 +76,10 @@ export interface Pet {
   /** With a sitter until then: nothing falls. */
   awayUntil: number | null;
   care: CareTally;
+  /** Since when every need has been at half or more; null once one dips. */
+  goodSince?: number | null;
+  /** When it had its first whole good day (src/domain/delights.ts). */
+  goodDayAt?: number | null;
   /** When this state was true. */
   asOf: number;
 }
@@ -89,6 +93,7 @@ export interface Schedule {
 
 export type PetEventKind =
   | 'hatched'
+  | 'good-day'
   | 'grew'
   | 'fell-asleep'
   | 'woke'
@@ -168,6 +173,8 @@ export function newPet(id: string, name: string, now: number, traits: Trait[]): 
     treats: [],
     awayUntil: null,
     care: { attention: 0, foods: [], rest: 0, neglect: 0 },
+    goodSince: null,
+    goodDayAt: null,
     asOf: now,
   };
 }

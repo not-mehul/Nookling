@@ -3,8 +3,9 @@
 // toast always says what happened, so nothing is only visual.
 
 import { celebrate, createEggs, type CelebrateOptions } from 'dusk-dawn/expressive';
-import { t } from '../i18n/index.svelte';
+import { t, type MessageKey } from '../i18n/index.svelte';
 import { ui } from '../state/ui.svelte';
+import { siblingProp } from '../domain/delights';
 
 export const EGGS = ['konami', 'title', 'sibling', 'birthday'] as const;
 export type Egg = (typeof EGGS)[number];
@@ -22,6 +23,14 @@ export const NOOK: CelebrateOptions = {
 export function hatchEgg(id: Egg, message: string): void {
   const { isNew, found, total } = eggs.find(id);
   ui.notify(isNew ? `${message} ${t('egg.found', { found, total })}` : message, 'celebrate');
+}
+
+const APP_NAMES: Record<string, string> = { mise: 'Mise', bookshelf: 'BookShelf', waymark: 'Waymark', ledger: 'Ledger', colophon: 'Colophon', rosetta: 'Rosetta' };
+
+/** Named after a sibling app: it dresses the part. */
+export function siblingEgg(name: string): void {
+  const prop = siblingProp(name);
+  if (prop) hatchEgg('sibling', t(`egg.sibling.${prop}` as MessageKey, { app: APP_NAMES[prop] ?? prop }));
 }
 
 export function eggsFound(): number {

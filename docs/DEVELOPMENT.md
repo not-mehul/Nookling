@@ -41,7 +41,7 @@ It breathes and blinks only while it is on screen and the page is visible, and h
 
 ## Phases
 
-The app is built in phases, each one committed and working on its own:
+The app was built in phases, each one committed and working on its own. All ten are done:
 
 1. dusk-dawn 2.2.0: pet tokens, the need meter and the living-subject rule
 2. Scaffold: this repository, CI, release, icon
@@ -53,3 +53,20 @@ The app is built in phases, each one committed and working on its own:
 8. Growing up: hatching, stages, traits and forms
 9. Journal, Play and backups
 10. Easter eggs, then v0.1.0
+
+### Easter eggs
+
+Four, counted in Settings → About (`src/lib/delight.ts`, rules in `src/domain/delights.ts`):
+
+- **The Konami code** (↑ ↑ ↓ ↓ ← → ← → B A): a somersault and sparks.
+- **Seven taps on the title**: the fluff tickles its nose. Achoo.
+- **A sibling's name**: name it Mise, BookShelf, Waymark, Ledger, Colophon or Rosetta and it wears that app's prop.
+- **Its hatch day**, a year or more on: a cake.
+
+Not an egg, but a milestone: its first whole day with every need at half or more gets confetti and a line in the Journal.
+
+### After v0.1.0
+
+- A home-screen widget, shake-to-wobble and a seven-day chart of its needs.
+- Cross-app links, once the first release is out: the other six apps gain `nookling` in their `links.ts`.
+- Switch the dusk-dawn pin from a commit to the `v2.2.0` tag once that tag exists.

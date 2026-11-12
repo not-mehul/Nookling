@@ -123,3 +123,18 @@ test('leaves the pet with a sitter and brings it home', async ({ page }) => {
   await page.locator('#btnComeBackNook').click();
   await expect(page.locator('#need-fullness')).toBeVisible();
 });
+
+test('easter eggs: the Konami code, the title and a sibling’s name', async ({ page }) => {
+  await hatch(page, 'Mise');
+  const toast = page.locator('.toast-region[role="status"]');
+  for (const key of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await page.keyboard.press(key);
+  await expect(toast).toContainText('Mise does a somersault.');
+  for (let i = 0; i < 7; i++) await page.locator('h1').click();
+  await expect(toast).toContainText('Achoo.');
+  await expect(page.locator('.prop.hat')).toHaveCount(1);
+  await page.locator('#tabSettings').click();
+  await expect(page.locator('#eggCount')).toHaveText('Easter eggs found: 3 of 4.');
+  await page.locator('#renameInput').fill('Rosetta');
+  await page.locator('#renameInput').press('Enter');
+  await expect(toast).toContainText('in honour of Rosetta');
+});

@@ -12,7 +12,7 @@
 
 Nookling is a virtual pet for Android: a perfectly round ball of fluff with enormous eyes and a tiny smile that lives in a lamp-lit nook. Feed it, play with it, keep it tidy and put it to bed. It keeps living while the app is closed, its needs falling on a steady clock, and it can remind you when it would like some company. It never dies and never guilt-trips: a neglected nookling just feels unwell until you come back.
 
-> Nookling is being built in phases. This README describes the finished app; features arrive in the order of [the plan](docs/DEVELOPMENT.md#phases).
+> Version 0.1.0, ready for its first Android release. Still to come: a home-screen widget, shake-to-wobble, a seven-day chart of its needs, and links to and from the other apps.
 
 ## Features
 

@@ -4,6 +4,7 @@
 
 import { db, type LogEntry, type Photo } from '../data/db';
 import type { BackupData } from '../lib/backup';
+import { goodDay } from '../domain/delights';
 import { canHave, type Food } from '../domain/foods';
 import {
   clean,
@@ -27,7 +28,7 @@ import {
 import { settings } from './settings.svelte';
 
 const TICK_MS = 30_000;
-const LOGGED: ReadonlySet<string> = new Set(['hatched', 'grew', 'fell-asleep', 'woke', 'hungry', 'tired', 'bored', 'grubby', 'mess', 'unwell', 'recovered', 'back-from-sitter']);
+const LOGGED: ReadonlySet<string> = new Set(['hatched', 'grew', 'fell-asleep', 'woke', 'hungry', 'tired', 'bored', 'grubby', 'mess', 'unwell', 'recovered', 'back-from-sitter', 'good-day']);
 
 function schedule(): Schedule {
   const { bedtime, wake, gentle } = settings.current;
@@ -77,10 +78,13 @@ class PetState {
   async refresh(now = Date.now(), quiet = false): Promise<void> {
     const pet = this.pet;
     if (!pet) return;
-    const { pet: next, events } = simulate(pet, now, schedule());
+    const simulated = simulate(pet, now, schedule());
+    const events = simulated.events;
+    const good = goodDay(simulated.pet, now);
+    if (good.celebrate) events.push({ kind: 'good-day', at: now });
     if (quiet && events.length) this.away = events;
     await this.save(
-      next,
+      good.pet,
       events.filter((e) => LOGGED.has(e.kind)).map((e) => ({ kind: e.kind, at: e.at, detail: e.stage })),
     );
     if (!quiet && events.length) for (const fn of this.listeners) fn(events);
@@ -213,7 +217,7 @@ class PetState {
 
   private async loadLog(): Promise<void> {
     this.log = await db.log.orderBy('at').reverse().limit(200).toArray();
-    this.milestones = (await db.log.where('petId').equals(this.pet?.id ?? '').sortBy('at')).filter((e) => e.kind === 'hatched' || e.kind === 'grew');
+    this.milestones = (await db.log.where('petId').equals(this.pet?.id ?? '').sortBy('at')).filter((e) => e.kind === 'hatched' || e.kind === 'grew' || e.kind === 'good-day');
   }
 
   private async loadPhotos(): Promise<void> {

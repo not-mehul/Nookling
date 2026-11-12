@@ -30,6 +30,8 @@ class UiState {
   /** A food given from the Pantry, for the Nook to feed once it is showing. */
   pendingFood = $state.raw<Food | null>(null);
   toast = $state.raw<Toast | null>(null);
+  /** An easter egg for the Nook to act out: the Konami code, or a sneeze from the title. */
+  trick = $state.raw<{ kind: 'konami' | 'sneeze'; n: number } | null>(null);
   /** Overlays (dialogs, sheets) register here so the Android back button can close them. */
   private closers: (() => void)[] = [];
   private toastTimer: ReturnType<typeof setTimeout> | undefined;

@@ -18,3 +18,6 @@ export function furToken(stage: Stage, form: Form | null, unwell: boolean): stri
   if (stage !== 'grown' || !form) return '--pet-fur';
   return { lamplighter: '--pet-fur', gardener: '--pet-fur-sage', dreamer: '--pet-fur-cream', scamp: '--pet-fur-rust' }[form];
 }
+
+/** Something it wears or has beside it: a sibling app's prop, or a birthday cake. */
+export type Prop = 'mise' | 'bookshelf' | 'waymark' | 'ledger' | 'colophon' | 'rosetta' | 'cake';

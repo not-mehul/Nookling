@@ -11,7 +11,9 @@
   import { FOODS, canHave, type Food } from '../domain/foods';
   import { NEEDS, type PetEvent, type Refusal } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
-  import { cheer } from '../lib/delight';
+  import { cheer, hatchEgg } from '../lib/delight';
+  import { isBirthday, siblingProp } from '../domain/delights';
+  import type { Prop } from '../pet/types';
   import { snapshot } from '../lib/snapshot';
   import Pet from '../pet/Pet.svelte';
   import { petGestures } from '../pet/gestures';
@@ -49,6 +51,13 @@
   let clock = $state(Date.now());
   const sleepyHour = $derived(drowsy(clock, settings.current));
   const face = $derived(pet ? (held ?? restingFace(pet, sleepyHour)) : 'content');
+  const wear = $derived.by(() => {
+    const out: Prop[] = [];
+    const sibling = pet && pet.stage !== 'seedpod' ? siblingProp(pet.name) : null;
+    if (sibling) out.push(sibling);
+    if (pet && isBirthday(pet, clock)) out.push('cake');
+    return out;
+  });
   const statusLine = $derived(pet ? t(`status.${status(pet)}` as MessageKey, { name }) : '');
   let heldTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -324,6 +333,11 @@
         ui.notify(e.stage === 'grown' && form ? t(`event.grew.${form}` as MessageKey, { name }) : t('event.grew.nookling', { name }), 'celebrate');
       } else if (e.kind === 'unwell') ui.notify(t('event.unwell', { name }), 'info');
       else if (e.kind === 'recovered') ui.notify(t('event.recovered', { name }), 'success');
+      else if (e.kind === 'good-day') {
+        cheer(frame, { count: 70 });
+        chirp('happy');
+        ui.notify(t('event.good-day', { name }), 'celebrate');
+      }
     }
   }
 
@@ -333,6 +347,37 @@
     const list = new Intl.ListFormat('en', { type: 'conjunction' }).format(parts);
     return t('welcome.line', { name, list });
   }
+
+  // Easter eggs from the header, acted out here.
+  $effect(() => {
+    const trick = ui.trick;
+    if (!trick || !pet || pet.stage === 'seedpod' || pet.asleep) return;
+    ui.trick = null;
+    if (trick.kind === 'konami') {
+      hold('happy', 1800);
+      move('somersault');
+      chirp('giggle');
+      cheer(frame, { shapes: ['soft-burst', 'clover-4'], glyphs: ['✦', '✧'], count: 70 });
+    } else {
+      hold('surprised', 500);
+      setTimeout(() => (hold('happy', 900), move('wobble'), chirp('boop')), 450);
+    }
+  });
+
+  // Its hatch day, a year or more on: a cake, and an egg the first time.
+  $effect(() => {
+    if (!pet || !wear.includes('cake')) return;
+    const today = new Date(clock).toDateString();
+    try {
+      if (localStorage.getItem('nookling.birthday') === today) return;
+      localStorage.setItem('nookling.birthday', today);
+    } catch {
+      // No storage: the cake is still there.
+    }
+    const years = new Date(clock).getFullYear() - new Date(pet.hatchedAt ?? clock).getFullYear();
+    cheer(frame, { count: 80 });
+    hatchEgg('birthday', t('egg.birthday', { name, count: years }));
+  });
 
   // "Give" in the Pantry lands here.
   $effect(() => {
@@ -345,7 +390,7 @@
   onMount(() => {
     const away = petState.takeAway();
     welcome = welcomeLine(away);
-    tell(away.filter((e) => e.kind === 'grew'));
+    tell(away.filter((e) => e.kind === 'grew' || e.kind === 'good-day'));
     const stop = petState.onEvents(tell);
 
     // Idle beats: now and then it does a little something, picked by its traits.
@@ -403,6 +448,7 @@
             grubby={grubbiness(pet)}
             unwell={pet.unwell}
             label={statusLine}
+            {wear}
           />
         </button>
         {#if flying}

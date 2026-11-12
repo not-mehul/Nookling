@@ -2,6 +2,7 @@
   import { Switch } from 'dusk-dawn';
   import type { ThemeSetting } from '../domain/settings';
   import { t, type MessageKey } from '../i18n/index.svelte';
+  import { eggsFound, siblingEgg, EGGS } from '../lib/delight';
   import { BACKUP_PREFIX, buildBackupZip, parseBackup, type BackupData } from '../lib/backup';
   import { datedName, isNative, saveFile } from '../platform/output';
   import Sheet from './ui/Sheet.svelte';
@@ -30,6 +31,7 @@
     if (!newName.trim() || newName.trim() === pet?.name) return;
     await petState.rename(newName);
     ui.notify(t('settings.renamed', { name: newName.trim() }), 'success');
+    siblingEgg(newName);
   }
 
   let pending = $state.raw<BackupData | null>(null);
@@ -182,6 +184,7 @@
     <p class="t-hint">Nookling · {t('settings.version', { version: __APP_VERSION__ })}</p>
     <p class="t-hint"><b>{t('settings.private')}</b> {t('settings.privateText')}</p>
     <p class="t-hint">{t('settings.credit')}</p>
+    <p class="t-hint" id="eggCount">{t('settings.eggs', { found: eggsFound(), total: EGGS.length })}</p>
   </div>
 </div>
 
