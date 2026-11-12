@@ -13,10 +13,14 @@
   import { known } from '../world/tricks';
   import type { Game } from '../domain/games';
   import Icon from './ui/Icon.svelte';
-  import { canHave, pantry, type Food } from '../domain/foods';
+  import { canHave, foodById, pantry, type Food } from '../domain/foods';
   import DecorLayer from './DecorLayer.svelte';
   import DecorPanel from './DecorPanel.svelte';
   import WardrobeSheet from './WardrobeSheet.svelte';
+  import PhotoSheet from './PhotoSheet.svelte';
+  import QuietSheet from './QuietSheet.svelte';
+  import SeasonLayer from './SeasonLayer.svelte';
+  import VisitorArt from '../world/art/VisitorArt.svelte';
   import { DECOR } from '../world/decor';
   import { grownFoods } from '../world/garden';
   import { NEEDS, type PetEvent, type Refusal } from '../domain/pet';
@@ -57,6 +61,11 @@
   let playOpen = $state(false);
   let fidgetOpen = $state(false);
   let wardrobeOpen = $state(false);
+  let photoOpen = $state(false);
+  let quietOpen = $state(false);
+  /** The visitor's card, open after a tap on them. */
+  let greeting = $state(false);
+  const visit = $derived(pet && pet.stage !== 'seedpod' && !pet.awayUntil ? worldState.world.visit : null);
   let decorating = $state(false);
   const foods = $derived(pantry(grownFoods(worldState.world.garden)));
   let tricksOpen = $state(false);
@@ -131,6 +140,22 @@
     clearTimeout(sayTimer);
     saying = line;
     sayTimer = setTimeout(() => (saying = ''), ms);
+  }
+
+  // ── Visitors
+  async function favour(who: string) {
+    greeting = false;
+    await worldState.favour();
+    hold('happy', 1600);
+    move('bounce');
+    chirp('happy');
+    ui.notify(t('visitor.thanks', { visitor: who, name }), 'celebrate');
+  }
+  async function farewell(who: string) {
+    greeting = false;
+    await worldState.farewell();
+    move('hop');
+    ui.notify(t('visitor.bye', { visitor: who }), 'info');
   }
 
   // ── Chat: it asks; you answer; it remembers.
@@ -577,12 +602,18 @@
         </div>
       {/if}
       {#if !pet.awayUntil}
-        <button type="button" class="btn-icon snap" id="btnPicture" disabled={snapping} aria-label={t('nook.picture')} title={t('nook.picture')} onclick={picture}>
+        <button type="button" class="btn-icon snap" id="btnPicture" disabled={snapping} aria-label={t('nook.picture')} title={t('nook.picture')} onclick={() => (pet.stage === 'seedpod' ? picture() : (photoOpen = true))}>
           <Icon name="camera" size={20} />
         </button>
       {/if}
       <div class="scene">
+      <SeasonLayer now={clock} />
       <DecorLayer editing={decorating} night={pet.asleep} />
+      {#if visit && !decorating}
+        <button type="button" class="visitor" id="btnVisitor" aria-expanded={greeting} aria-label={t('visitor.open', { visitor: t(`visitor.${visit.id}` as MessageKey) })} onclick={() => (greeting = !greeting)}>
+          <VisitorArt id={visit.id} size={60} />
+        </button>
+      {/if}
       <div class="pet-frame" bind:this={frame}>
         <button
           type="button"
@@ -634,6 +665,20 @@
             <span class="t-hint">{opened.treasure.note}</span>
           </span>
         </button>
+      {/if}
+      {#if visit && greeting}
+        {@const who = t(`visitor.${visit.id}` as MessageKey)}
+        <div class="found visitor-card" id="visitorCard">
+          <VisitorArt id={visit.id} size={44} />
+          <span class="found-text">
+            <span class="found-name">{t('visitor.here', { visitor: who })}</span>
+            {#if visit.favour}{@const food = foodById(visit.favour.food)}<span class="t-hint">{t('visitor.asks', { food: (food?.name ?? '').toLowerCase() })}</span>{/if}
+            <span class="visitor-actions">
+              {#if visit.favour}{@const food = foodById(visit.favour.food)}<button type="button" class="btn btn-secondary" id="btnFavour" onclick={() => favour(who)}>{t('visitor.share', { food: (food?.name ?? '').toLowerCase() })}</button>{/if}
+              <button type="button" class="btn btn-muted" id="btnWave" onclick={() => farewell(who)}>{t('visitor.wave')}</button>
+            </span>
+          </span>
+        </div>
       {/if}
       {#if asking}<ChatBubble question={asking} {name} onreply={reply} />{/if}
       {#if welcome}<p class="t-hint welcome" id="welcomeLine">{welcome}</p>{/if}
@@ -702,6 +747,7 @@
       <div class="fun" aria-label={t('fun.label', { name })} role="group">
         <button type="button" class="btn btn-muted" id="btnChat" aria-expanded={!!asking} onclick={chat}><Icon name="chat" size={16} />{t('fun.chat')}</button>
         <button type="button" class="btn btn-muted" id="btnTricks" onclick={() => (pet.asleep ? refused('asleep') : (tricksOpen = true))}><Icon name="wand" size={16} />{t('fun.tricks')}</button>
+        <button type="button" class="btn btn-muted" id="btnQuiet" onclick={() => (quietOpen = true)}><Icon name="moon" size={16} />{t('fun.quiet')}</button>
         <button type="button" class="btn btn-muted" id="btnFidget" onclick={() => (pet.asleep ? refused('asleep') : (fidgetOpen = true))}><Icon name="hand" size={16} />{t('fun.fidget')}</button>
       </div>
     {/if}
@@ -710,6 +756,14 @@
 
 {#if playOpen && pet}
   <PlaySheet {name} stage={pet.stage} form={pet.form} onresult={played} onclose={() => (playOpen = false)} />
+{/if}
+
+{#if photoOpen && pet}
+  <PhotoSheet {name} stage={pet.stage} form={pet.form} {wear} onclose={() => (photoOpen = false)} />
+{/if}
+
+{#if quietOpen && pet}
+  <QuietSheet {name} stage={pet.stage} form={pet.form} onclose={() => (quietOpen = false)} />
 {/if}
 
 {#if wardrobeOpen && pet}
@@ -819,6 +873,31 @@
   .found {
     position: relative;
     z-index: 1;
+  }
+  .visitor {
+    position: absolute;
+    left: 4%;
+    bottom: 8%;
+    z-index: 2;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  /* The critter potters about inside a still tap target. */
+  .visitor :global(svg) {
+    animation: potter 6s ease-in-out infinite;
+  }
+  @keyframes potter {
+    50% {
+      translate: 8px 0;
+    }
+  }
+  .visitor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
   }
   .room-tools {
     position: absolute;
@@ -994,7 +1073,7 @@
   }
   .fun {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
     margin: calc(-1 * var(--space-3)) 0 var(--space-5);
   }
@@ -1016,6 +1095,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .pet-button.is-cuddled :global(.rig),
+    .visitor :global(svg),
     .bubble {
       animation: none;
     }

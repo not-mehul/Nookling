@@ -14,6 +14,9 @@ import { worldState } from './state/world.svelte';
 import { settings } from './state/settings.svelte';
 import { ui } from './state/ui.svelte';
 import './styles/app.css';
+import { updateWidget } from './platform/widget';
+import { status } from './pet/behaviour';
+import { t, type MessageKey } from './i18n/index.svelte';
 
 function start(): void {
   // Apply the theme before the first paint; App.svelte keeps it in sync afterwards.
@@ -33,7 +36,14 @@ function start(): void {
       void reminders.check();
     });
     // Leaving: hand the next two days of reminders to the phone (src/domain/reminders.ts).
-    void CapacitorApp.addListener('pause', () => void petState.refresh().then(() => reminders.plan()));
+    // And the home-screen widget gets a fresh picture.
+    void CapacitorApp.addListener('pause', () =>
+      void petState.refresh().then(() => {
+        void reminders.plan();
+        const pet = petState.pet;
+        if (pet) void updateWidget(pet.name, pet.stage === 'seedpod' ? t('pod.label') : t(`status.${status(pet)}` as MessageKey, { name: pet.name }));
+      }),
+    );
     void reminders.clear();
     void reminders.check();
     // nookling:// links from the other apps only ever open the Nook (style.md §14.1).

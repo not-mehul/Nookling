@@ -8,8 +8,9 @@ import { recordGame, type Played } from '../world/arcade';
 import { LEARN_AFTER, teach, type Trick } from '../world/tricks';
 import { place, type DecorId } from '../world/decor';
 import { harvest, plant, type SeedId } from '../world/garden';
-import { seasonAt } from '../world/treasures';
+import { pickTreasure, seasonAt } from '../world/treasures';
 import { collectSeason, wear, type ClothesId } from '../world/wardrobe';
+import { maybeVisit, stillHere } from '../world/visitors';
 import { pickMoment, type Moment } from '../world/moments';
 import { forage, newWorld, normaliseWorld, receive, stayed, MOMENT_AFTER, type Find, type World } from '../world/world';
 import { petState, schedule } from './pet.svelte';
@@ -53,7 +54,31 @@ class WorldState {
       this.moment = pickMoment(pet.traits, now, Math.random, this.moment?.id);
       caught = this.moment.id;
     }
-    void this.update((w) => remember(stayed(forage(this.season(w, now), pet, now, schedule()), now), caught, now));
+    void this.update((w) => remember(stayed(this.visitors(forage(this.season(w, now), pet, now, schedule()), pet.id, now, gone), now), caught, now));
+  }
+
+  /** A visitor may have dropped by; one who has stayed long enough goes home. */
+  private visitors(w: World, petId: string, now: number, gone: number): World {
+    if (w.visit && !stillHere(w.visit, now)) w = { ...w, visit: null };
+    if (w.visit) return w;
+    const visit = maybeVisit(petId, now, gone, w.lastVisit);
+    if (!visit) return w;
+    const met = w.visitors[visit.id] ?? { met: 0, favours: 0 };
+    return { ...w, visit, lastVisit: now, visitors: { ...w.visitors, [visit.id]: { ...met, met: met.met + 1 } } };
+  }
+
+  /** Did them the favour: they leave a little thank-you find. */
+  async favour(now = Date.now()): Promise<void> {
+    const v = this.world.visit;
+    if (!v) return;
+    const met = this.world.visitors[v.id] ?? { met: 1, favours: 0 };
+    const thanks = { id: `${v.id}:${now}`, treasureId: pickTreasure(now, Math.random()).id, at: now };
+    await this.save({ ...this.world, visit: null, waiting: [...this.world.waiting, thanks], visitors: { ...this.world.visitors, [v.id]: { ...met, favours: met.favours + 1 } } });
+  }
+
+  /** Wave them off. */
+  async farewell(): Promise<void> {
+    await this.save({ ...this.world, visit: null });
   }
 
   /** Seasonal clothes in season join the wardrobe. */

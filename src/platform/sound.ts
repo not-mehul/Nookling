@@ -89,3 +89,57 @@ export function note(step: number, ms = 220): void {
     // A nicety.
   }
 }
+
+/**
+ * A soft ambient bed for Quiet time, made from filtered noise: rain, a
+ * breeze, or night (a breeze with the odd cricket). Returns a stop function.
+ * Respects the sound setting like everything else.
+ */
+export function ambient(kind: 'rain' | 'breeze' | 'night'): () => void {
+  const ctx = audio();
+  if (!ctx) return () => {};
+  try {
+    const seconds = 2;
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * seconds, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    // Brown-ish noise: softer than white.
+    let last = 0;
+    for (let i = 0; i < data.length; i++) {
+      last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+      data[i] = last * 3.5;
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = kind === 'rain' ? 'bandpass' : 'lowpass';
+    filter.frequency.value = kind === 'rain' ? 1400 : 420;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(kind === 'rain' ? 0.09 : 0.06, ctx.currentTime + 1.5);
+    // The breeze rises and falls.
+    const lfo = ctx.createOscillator();
+    const depth = ctx.createGain();
+    lfo.frequency.value = 0.12;
+    depth.gain.value = kind === 'rain' ? 0.01 : 0.03;
+    lfo.connect(depth).connect(gain.gain);
+    source.connect(filter).connect(gain).connect(ctx.destination);
+    source.start();
+    lfo.start();
+    const extras = setInterval(() => {
+      if (kind === 'rain' && Math.random() < 0.6) tone(ctx, 2400 + Math.random() * 800, 1800, 30, 0, 'sine', 0.012);
+      if (kind === 'night' && Math.random() < 0.25) for (let i = 0; i < 3; i++) tone(ctx, 4200, 4300, 40, i * 0.07, 'sine', 0.01);
+    }, 400);
+    return () => {
+      clearInterval(extras);
+      const end = ctx.currentTime + 0.8;
+      gain.gain.cancelScheduledValues(ctx.currentTime);
+      gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      source.stop(end + 0.05);
+      lfo.stop(end + 0.05);
+    };
+  } catch {
+    return () => {};
+  }
+}

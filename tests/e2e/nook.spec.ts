@@ -40,6 +40,10 @@ test('plays Echo, takes a picture and finds both in the Journal', async ({ page 
   await expect(toast).toContainText('Pip had a lovely time.', { timeout: 10_000 });
 
   await page.locator('#btnPicture').click();
+  await page.locator('[data-backdrop="night"]').click();
+  await page.locator('[data-pose="cheeky"]').click();
+  await page.locator('[data-sticker="star"]').click();
+  await page.locator('#btnSnap').click();
   await expect(toast).toContainText('Picture saved to the Journal.');
 
   await page.locator('#tabJournal').click();
@@ -245,4 +249,47 @@ test('decorates the nook, dresses up, and plants the garden', async ({ page }) =
   await page.reload();
   await page.locator('#tabPantry').click();
   await expect(page.locator('[data-plot="0"]')).toContainText('Mint');
+});
+
+test('quiet time: the window, breathing and a bedtime story', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#btnQuiet').click();
+  await expect(page.locator('#quietWindow')).toHaveAttribute('data-sky', 'day');
+  await expect(page.locator('#quietLine')).toContainText('Pip');
+  await page.locator('[data-quiet="breathe"]').click();
+  await page.locator('#btnBreathe').click();
+  await expect(page.locator('#breatheLine')).toHaveText('Breathe in…');
+  await page.locator('[data-quiet="story"]').click();
+  await expect(page.locator('#btnTell')).toBeDisabled();
+  for (const w of ['who:owl', 'where:attic', 'what:map']) await page.locator(`[data-word="${w}"]`).click();
+  await page.locator('#btnTell').click();
+  await expect(page.locator('#storyText')).toContainText('a sleepy owl');
+  await page.locator('#btnTuckIn').click();
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip is tucked in.');
+  await expect(page.locator('#btnLights')).toContainText('Lights on');
+});
+
+test('a visitor drops by, and a favour brings a find', async ({ page }) => {
+  await hatch(page);
+  // Seat a visitor, as if one came while the app was closed.
+  await page.evaluate(async () => {
+    const req = indexedDB.open('nookling');
+    const db: IDBDatabase = await new Promise((r) => (req.onsuccess = () => r(req.result)));
+    const tx = db.transaction('world', 'readwrite');
+    const store = tx.objectStore('world');
+    const w = await new Promise<Record<string, unknown>>((r) => {
+      const g = store.get('world');
+      g.onsuccess = () => r(g.result);
+    });
+    store.put({ ...w, visit: { id: 'bramble', at: Date.now(), favour: { food: 'pear-slice' } }, visitors: { bramble: { met: 1, favours: 0 } } });
+    await new Promise((r) => (tx.oncomplete = r));
+  });
+  await page.reload();
+  await page.locator('#btnVisitor').click();
+  await expect(page.locator('#visitorCard')).toContainText('Bramble the snail dropped by');
+  await page.locator('#btnFavour').click();
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Bramble the snail says thank you');
+  await expect(page.locator('#btnGift')).toBeVisible();
+  await page.locator('#tabJournal').click();
+  await expect(page.locator('#journalVisitors')).toContainText('Bramble the snail');
 });

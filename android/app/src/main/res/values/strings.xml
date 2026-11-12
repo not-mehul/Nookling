@@ -4,4 +4,7 @@
     <string name="title_activity_main" translatable="false">Nookling</string>
     <string name="package_name" translatable="false">io.github.notmehul.nookling</string>
     <string name="custom_url_scheme" translatable="false">io.github.notmehul.nookling</string>
+    <string name="widget_description">Your nookling, on the home screen.</string>
+    <string name="widget_pet">Your nookling</string>
+    <string name="widget_empty">Open Nookling to say hello.</string>
 </resources>

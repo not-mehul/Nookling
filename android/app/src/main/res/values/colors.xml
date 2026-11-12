@@ -3,4 +3,8 @@
     <!-- Matches the web UI's background so there's no white flash on launch:
          the bg-grad-mid token from dusk-dawn (Dusk). -->
     <color name="nookling_surface">#0F0D0B</color>
+    <!-- The home-screen widget, in Dusk: panel, heading and body text tokens. -->
+    <color name="widget_surface">#E61C1814</color>
+    <color name="widget_heading">#F3ECE0</color>
+    <color name="widget_text">#C9BCA8</color>
 </resources>

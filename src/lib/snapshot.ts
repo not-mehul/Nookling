@@ -5,7 +5,7 @@
 const PAINTED = ['fill', 'stroke', 'stop-color', 'opacity', 'fill-opacity', 'stroke-opacity', 'stroke-width', 'transform', 'transform-origin', 'display', 'visibility'] as const;
 
 /** A copy of the SVG with every computed paint written inline, so it draws the same off the page. */
-export function inlineSvg(svg: SVGSVGElement, size: number): string {
+export function inlineSvg(svg: SVGSVGElement, size: number, height = size): string {
   const copy = svg.cloneNode(true) as SVGSVGElement;
   const from = [svg, ...svg.querySelectorAll('*')];
   const to = [copy, ...copy.querySelectorAll('*')];
@@ -20,7 +20,7 @@ export function inlineSvg(svg: SVGSVGElement, size: number): string {
     target.style.removeProperty('animation');
   });
   copy.setAttribute('width', String(size));
-  copy.setAttribute('height', String(size));
+  copy.setAttribute('height', String(height));
   copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   return new XMLSerializer().serializeToString(copy);
 }
@@ -38,8 +38,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** A 1080 by 1350 portrait card of the pet. */
-export async function snapshot(svg: SVGSVGElement, name: string, caption: string): Promise<Blob> {
+/** A 1080 by 1350 portrait card of the pet. Photo mode passes a backdrop (an SVG drawn on a 1080 × 1350 box) to draw behind it. */
+export async function snapshot(svg: SVGSVGElement, name: string, caption: string, backdrop?: SVGSVGElement): Promise<Blob> {
   const W = 1080;
   const H = 1350;
   const canvas = document.createElement('canvas');
@@ -53,6 +53,14 @@ export async function snapshot(svg: SVGSVGElement, name: string, caption: string
   grad.addColorStop(1, token('--bg-grad-bot'));
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
+  if (backdrop) {
+    const back = URL.createObjectURL(new Blob([inlineSvg(backdrop, W, H)], { type: 'image/svg+xml' }));
+    try {
+      ctx.drawImage(await loadImage(back), 0, 0, W, H);
+    } finally {
+      URL.revokeObjectURL(back);
+    }
+  }
 
   const markup = inlineSvg(svg, 820);
   const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }));

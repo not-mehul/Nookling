@@ -10,6 +10,7 @@ import { newArcade, type Arcade } from './arcade';
 import { DECOR, type DecorId } from './decor';
 import { PLOTS, SEEDS, newGarden, type Garden } from './garden';
 import { CLOTHES, newWardrobe, type Wardrobe } from './wardrobe';
+import { VISITORS, type Visit } from './visitors';
 
 export interface Find {
   id: string;
@@ -39,6 +40,12 @@ export interface World {
   decor: Partial<Record<DecorId, { x: number; y: number }>>;
   garden: Garden;
   wardrobe: Wardrobe;
+  /** Who is visiting now, if anyone. */
+  visit: Visit | null;
+  /** When the last visit began: one a day at most. */
+  lastVisit?: number;
+  /** Visitors met, and favours done for each. */
+  visitors: Record<string, { met: number; favours: number }>;
 }
 
 /** It wanders off for a find every few hours you're away (not at night). */
@@ -49,7 +56,7 @@ export const MAX_WAITING = 3;
 export const MOMENT_AFTER = 20 * 60_000;
 
 export function newWorld(now: number): World {
-  return { id: 'world', lastForage: now, waiting: [], treasures: {}, moments: {}, lastSeen: now, arcade: newArcade(), tricks: {}, chat: {}, decor: {}, garden: newGarden(), wardrobe: newWardrobe() };
+  return { id: 'world', lastForage: now, waiting: [], treasures: {}, moments: {}, lastSeen: now, arcade: newArcade(), tricks: {}, chat: {}, decor: {}, garden: newGarden(), wardrobe: newWardrobe(), visit: null, visitors: {} };
 }
 
 /** World data read back from storage or a backup, with anything missing filled in. */
@@ -65,7 +72,7 @@ export function normaliseWorld(raw: unknown, now = Date.now()): World {
     id: 'world',
     lastForage: num(r.lastForage, now),
     lastSeen: num(r.lastSeen, now),
-    waiting: Array.isArray(r.waiting) ? r.waiting.filter((f) => f && typeof f.id === 'string' && typeof f.treasureId === 'string').slice(0, MAX_WAITING) : [],
+    waiting: Array.isArray(r.waiting) ? r.waiting.filter((f) => f && typeof f.id === 'string' && typeof f.treasureId === 'string').slice(0, MAX_WAITING + 2) : [],
     treasures: record(r.treasures),
     moments: record(r.moments),
     arcade: { ...newArcade(), ...record<never>(r.arcade), best: record(r.arcade?.best), played: record(r.arcade?.played) },
@@ -81,6 +88,9 @@ export function normaliseWorld(raw: unknown, now = Date.now()): World {
       }),
       harvested: record(r.garden?.harvested),
     },
+    visit: r.visit && VISITORS.some((v) => v.id === r.visit!.id) && typeof r.visit.at === 'number' ? r.visit : null,
+    lastVisit: typeof r.lastVisit === 'number' ? r.lastVisit : undefined,
+    visitors: record(r.visitors),
     wardrobe: {
       wearing: Object.fromEntries(Object.entries(record<string>(r.wardrobe?.wearing)).filter(([slot, id]) => CLOTHES.some((c) => c.id === id && c.slot === slot))),
       kept: record(r.wardrobe?.kept),

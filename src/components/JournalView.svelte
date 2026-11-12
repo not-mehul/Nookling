@@ -1,6 +1,8 @@
 <script lang="ts">
   // The Journal: who it is, the moments it grew, its pictures and the care log.
   import { GAMES, type Game } from '../domain/games';
+  import VisitorArt from '../world/art/VisitorArt.svelte';
+  import { VISITORS } from '../world/visitors';
   import { foodById } from '../domain/foods';
   import { DAY } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
@@ -152,6 +154,19 @@
       {/if}
     </div>
 
+    <div class="panel" id="journalVisitors">
+      <div class="section-head"><h3>{t('journal.visitors')}</h3><span class="t-data">{VISITORS.filter((v) => worldState.world.visitors[v.id]).length} / {VISITORS.length}</span></div>
+      {#if Object.keys(worldState.world.visitors).length}
+        <ul class="visitors">
+          {#each VISITORS.filter((v) => worldState.world.visitors[v.id]) as v (v.id)}
+            <li><VisitorArt id={v.id} size={40} /><span><b>{t(`visitor.${v.id}` as MessageKey)}</b><br /><span class="t-hint">{t('journal.visitorMet', { count: worldState.world.visitors[v.id]!.met })}</span></span></li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="t-hint">{t('journal.visitorsEmpty')}</p>
+      {/if}
+    </div>
+
     <div class="panel" id="journalAlbum">
       <div class="section-head"><h3>{t('journal.album')}</h3></div>
       {#if petState.photos.length}
@@ -241,6 +256,16 @@
   }
   .day:first-of-type {
     margin-top: 0;
+  }
+  .visitors {
+    list-style: none;
+    display: grid;
+    gap: var(--space-2);
+  }
+  .visitors li {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
   }
   .section-head {
     display: flex;
