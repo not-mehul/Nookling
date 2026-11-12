@@ -9,6 +9,7 @@ Nookling is built like its siblings, and Mise in particular: Svelte 5 and TypeSc
 | `npm run dev` | The app in a browser at http://localhost:5173 |
 | `npm run check` | Contrast (`dusk-dawn check`), ESLint, no literal colours (`dusk-dawn colours`), `svelte-check`, Vitest |
 | `npm run test:e2e` | A production build, then the Playwright tests at phone size, with axe in both themes |
+| `npm run sheet` | Renders the pet's character sheet (`sheet.html`) in both themes to `docs/character-sheet-*.png` |
 | `npm run icons` | Renders every launcher icon from `assets/icon-source.svg` |
 | `npm run sync` / `android` | Build and copy into the Android project / and open Android Studio |
 
@@ -25,6 +26,14 @@ If Playwright can't find its browser, point it at one with `PLAYWRIGHT_CHROMIUM_
 | `src/pet/` | The nookling's drawing and behaviour |
 | `src/components/` | Screens and their parts; `ui/` holds small shared pieces |
 | `src/i18n/` | Strings. English first, in Mise's structure so more languages can follow |
+
+## The pet
+
+`src/pet/Pet.svelte` is the whole creature: one inline SVG rig (fluff, eyes, pupils, lids, mouth, cheeks, glow) whose colours are all dusk-dawn `--pet-*` tokens, so it follows the theme with no redraw. Its shapes come from `src/pet/geometry.ts`. It takes a stage, a form, an expression, where it looks, its glow, how grubby it is and whether it is unwell, and `react()` plays one-off movements (hop, squish, wiggle and the rest) on the Web Animations API.
+
+It breathes and blinks only while it is on screen and the page is visible, and holds still under reduced motion (style.md §11.2, the living-subject rule).
+
+![The character sheet in Dusk](character-sheet-dusk.png)
 
 ## Links between the apps
 

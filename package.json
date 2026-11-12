@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "check": "dusk-dawn check && npm run lint && npm run typecheck && npm test",
     "icons": "node scripts/build-icons.mjs",
-    "sheet": "vite build && node scripts/character-sheet.mjs",
+    "sheet": "node scripts/character-sheet.mjs",
     "test:e2e": "vite build && playwright test",
     "sync": "npm run build && cap sync android",
     "android": "npm run sync && cap open android",
