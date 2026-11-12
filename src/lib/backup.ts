@@ -8,8 +8,9 @@ import { strFromU8, strToU8, unzip, zip, type AsyncZippable, type Unzipped } fro
 import type { LogEntry, Photo } from '../data/db';
 import { NEEDS, newPet, TRAITS, type Pet } from '../domain/pet';
 import { normaliseSettings, type Settings } from '../domain/settings';
+import { normaliseWorld, type World } from '../world/world';
 
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 export const BACKUP_PREFIX = 'nookling-backup';
 
 export interface BackupData {
@@ -17,6 +18,8 @@ export interface BackupData {
   log: LogEntry[];
   settings: Settings | null;
   photos: Photo[];
+  /** Finds, moments and (later) the nook and garden. Backups from 0.1 have none. */
+  world: World | null;
 }
 
 const STAGES = ['seedpod', 'sprout', 'nookling', 'grown'];
@@ -74,18 +77,18 @@ function normaliseLog(raw: unknown, petId: string): LogEntry[] {
     .map((e) => ({ id: e.id, petId, at: e.at, kind: e.kind, ...(typeof e.detail === 'string' ? { detail: e.detail } : {}) }));
 }
 
-export function buildJson(pet: Pet, log: LogEntry[], settings: Settings, photos: Photo[], now = new Date()): string {
+export function buildJson(pet: Pet, log: LogEntry[], settings: Settings, photos: Photo[], now = new Date(), world: World | null = null): string {
   const { lastBackupAt: _, ...prefs } = settings;
   void _;
   return JSON.stringify(
-    { app: 'nookling', version: BACKUP_VERSION, exportedAt: now.toISOString(), pet, log, settings: prefs, photos: photos.map((p) => ({ id: p.id, at: p.at })) },
+    { app: 'nookling', version: BACKUP_VERSION, exportedAt: now.toISOString(), pet, log, settings: prefs, photos: photos.map((p) => ({ id: p.id, at: p.at })), ...(world ? { world } : {}) },
     null,
     2,
   );
 }
 
-export async function buildBackupZip(pet: Pet, log: LogEntry[], settings: Settings, photos: Photo[], now = new Date()): Promise<Uint8Array> {
-  const files: AsyncZippable = { 'nookling.json': strToU8(buildJson(pet, log, settings, photos, now)) };
+export async function buildBackupZip(pet: Pet, log: LogEntry[], settings: Settings, photos: Photo[], now = new Date(), world: World | null = null): Promise<Uint8Array> {
+  const files: AsyncZippable = { 'nookling.json': strToU8(buildJson(pet, log, settings, photos, now, world)) };
   for (const p of photos) files[`photos/${p.id}.png`] = new Uint8Array(await p.image.arrayBuffer());
   // Pictures are already compressed: store them as they are.
   return new Promise((resolve, reject) => zip(files, { level: 0 }, (err, data) => (err ? reject(err) : resolve(data))));
@@ -127,5 +130,6 @@ export async function parseBackup(bytes: Uint8Array): Promise<BackupData> {
     log: normaliseLog(data.log, pet.id),
     settings: data.settings && typeof data.settings === 'object' ? normaliseSettings(data.settings) : null,
     photos,
+    world: data.world && typeof data.world === 'object' ? normaliseWorld(data.world) : null,
   };
 }

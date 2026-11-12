@@ -24,6 +24,10 @@
   import type { Expression, Reaction } from '../pet/types';
   import { petState, type CareResult } from '../state/pet.svelte';
   import { ui } from '../state/ui.svelte';
+  import { worldState } from '../state/world.svelte';
+  import GiftBundle from '../world/art/GiftBundle.svelte';
+  import TreasureIcon from '../world/art/TreasureIcon.svelte';
+  import { treasureById, type Treasure } from '../world/treasures';
 
   const pet = $derived(petState.pet);
   const name = $derived(pet?.name ?? '');
@@ -50,7 +54,11 @@
   /** Ticks each minute, so it gets drowsy before bedtime with the app left open. */
   let clock = $state(Date.now());
   const sleepyHour = $derived(drowsy(clock, settings.current));
-  const face = $derived(pet ? (held ?? restingFace(pet, sleepyHour)) : 'content');
+  const moment = $derived(pet && pet.stage !== 'seedpod' && !pet.asleep ? worldState.moment : null);
+  const face = $derived(pet ? (held ?? moment?.expression ?? restingFace(pet, sleepyHour)) : 'content');
+  /** The find just opened, shown until the next one or a tap. */
+  let opened = $state<{ treasure: Treasure; isNew: boolean } | null>(null);
+  const gifts = $derived(pet && pet.stage !== 'seedpod' && !pet.awayUntil ? worldState.world.waiting.length : 0);
   const wear = $derived.by(() => {
     const out: Prop[] = [];
     const sibling = pet && pet.stage !== 'seedpod' ? siblingProp(pet.name) : null;
@@ -58,7 +66,35 @@
     if (pet && isBirthday(pet, clock)) out.push('cake');
     return out;
   });
-  const statusLine = $derived(pet ? t(`status.${status(pet)}` as MessageKey, { name }) : '');
+  const statusLine = $derived(pet ? (moment ? t(`moment.${moment.id}` as MessageKey, { name }) : t(`status.${status(pet)}` as MessageKey, { name })) : '');
+
+  // A moment lasts until it notices you: a tap, or a few seconds.
+  $effect(() => {
+    if (!moment) return;
+    const timer = setTimeout(() => notice(), 6000);
+    return () => clearTimeout(timer);
+  });
+  function notice() {
+    if (!worldState.moment) return;
+    worldState.noticed();
+    hold('surprised', 500);
+    setTimeout(() => (hold('happy', 1000), move('hop'), chirp('boop')), 450);
+  }
+
+  async function openGift() {
+    worldState.noticed();
+    const got = await worldState.receive();
+    if (!got) return;
+    const treasure = treasureById(got.find.treasureId);
+    if (!treasure) return;
+    opened = { treasure, isNew: got.isNew };
+    hold('happy', 1800);
+    move('bounce');
+    chirp('happy');
+    buzz('light');
+    if (got.isNew) cheer(frame, { count: 50 });
+    ui.notify(t(got.isNew ? 'gift.new' : 'gift.again', { name, treasure: treasure.name.toLowerCase() }), got.isNew ? 'celebrate' : 'success');
+  }
   let heldTimer: ReturnType<typeof setTimeout> | undefined;
 
   function hold(expression: Expression, ms = 1400) {
@@ -106,6 +142,7 @@
       }
       return;
     }
+    if (worldState.moment) return notice();
     if (Date.now() < sulkUntil) return;
     const result = await petState.stroke('boop');
     if (!result.ok) return;
@@ -268,6 +305,8 @@
   }
 
   function idle(kind: ReturnType<typeof idleBeat>) {
+    // Now and then, instead, it gets up to something.
+    if (Math.random() < 0.12) return worldState.catchMoment();
     switch (kind) {
       case 'look':
         look = { x: Math.random() * 2 - 1, y: Math.random() * 1.2 - 0.6 };
@@ -342,6 +381,12 @@
   }
 
   function welcomeLine(events: PetEvent[]): string {
+    // Cozy: coming back opens with joy, never a list of what went wrong.
+    if (settings.current.style === 'cozy') {
+      if (!events.length) return '';
+      const tidied = events.some((e) => e.kind === 'tidied');
+      return t('welcome.missed', { name }) + (tidied ? ` ${t('welcome.tidied')}` : '');
+    }
     const parts = summarise(events).map(({ kind, count }) => t(`away.${kind}` as MessageKey, { count }));
     if (!parts.length) return '';
     const list = new Intl.ListFormat('en', { type: 'conjunction' }).format(parts);
@@ -449,6 +494,7 @@
             unwell={pet.unwell}
             label={statusLine}
             {wear}
+            moment={moment?.prop ?? null}
           />
         </button>
         {#if flying}
@@ -461,7 +507,22 @@
           <svg class="mess mess-{i}" viewBox="-12 -8 24 16" aria-hidden="true"><path d="M-10 6Q-10 -2 -4 -3Q-2 -8 3 -6Q9 -6 10 6Z" /></svg>
         {/each}
       </div>
+      {#if gifts}
+        <button type="button" class="gift-button dd-pressable" id="btnGift" aria-label={t('gift.open', { name })} onclick={openGift}>
+          <GiftBundle size={52} />
+          {#if gifts > 1}<span class="gift-count t-data">{gifts}</span>{/if}
+        </button>
+      {/if}
       <p class="status-line" id="statusLine" aria-live="polite">{statusLine}</p>
+      {#if opened}
+        <button type="button" class="found" id="foundCard" onclick={() => (opened = null)} aria-label={t('gift.close')}>
+          <TreasureIcon treasure={opened.treasure} size={44} />
+          <span class="found-text">
+            <span class="found-name">{opened.treasure.name}{#if opened.isNew}<span class="found-new t-data"> · {t('gift.newBadge')}</span>{/if}</span>
+            <span class="t-hint">{opened.treasure.note}</span>
+          </span>
+        </button>
+      {/if}
       {#if welcome}<p class="t-hint welcome" id="welcomeLine">{welcome}</p>{/if}
       {#if trayOpen && pet.stage !== 'seedpod'}
         <div class="tray" id="foodTray">
@@ -548,6 +609,75 @@
   /* The room dims at bedtime, in both themes. */
   .room.is-night {
     background-color: rgba(var(--shadow-rgb), calc(0.35 * var(--shadow-strength)));
+  }
+  .gift-button {
+    position: absolute;
+    right: var(--space-3);
+    top: 30%;
+    z-index: 1;
+    padding: var(--space-1);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    animation: nudge 2.4s ease-in-out infinite;
+  }
+  @keyframes nudge {
+    0%,
+    80%,
+    100% {
+      rotate: 0deg;
+    }
+    85% {
+      rotate: -8deg;
+    }
+    90% {
+      rotate: 8deg;
+    }
+    95% {
+      rotate: -4deg;
+    }
+  }
+  .gift-count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--accent-bright);
+    color: var(--on-accent);
+    font-size: 0.75rem;
+  }
+  .found {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    width: 100%;
+    max-width: 360px;
+    padding: var(--space-3);
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    background: var(--panel-bg-faint);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--corner-lg);
+    cursor: pointer;
+  }
+  .found-text {
+    display: grid;
+    gap: 2px;
+  }
+  .found-name {
+    color: var(--text-heading);
+    font-weight: 600;
+  }
+  .found-new {
+    color: var(--accent-bright);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gift-button {
+      animation: none;
+    }
   }
   .snap {
     position: absolute;

@@ -10,6 +10,7 @@ import { isNative } from './platform/output';
 import { applyTheme } from './platform/theme.svelte';
 import { petState } from './state/pet.svelte';
 import { reminders } from './state/reminders.svelte';
+import { worldState } from './state/world.svelte';
 import { settings } from './state/settings.svelte';
 import { ui } from './state/ui.svelte';
 import './styles/app.css';
@@ -18,7 +19,7 @@ function start(): void {
   // Apply the theme before the first paint; App.svelte keeps it in sync afterwards.
   applyTheme(settings.current.theme);
   mount(App, { target: document.getElementById('app')! });
-  void petState.init();
+  void petState.init().then(() => worldState.init());
 
   if (isNative) {
     // Android back: close the topmost overlay, then return to the Nook, then exit (style.md §14).

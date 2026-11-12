@@ -144,3 +144,24 @@ test('easter eggs: the Konami code, the title and a sibling’s name', async ({ 
   await page.locator('#renameInput').press('Enter');
   await expect(toast).toContainText('in honour of Rosetta');
 });
+
+test('cozy: back after a while, it is caught in a moment and has a find to open', async ({ page }) => {
+  await hatch(page);
+  await expect(page.locator('#btnGift')).toHaveCount(0);
+  // Four hours later, in the afternoon.
+  await page.clock.setSystemTime(new Date(2026, 10, 12, 16, 5));
+  await page.reload();
+  await expect(page.locator('#statusLine')).not.toContainText('content', { timeout: 5000 });
+  await page.locator('#btnGift').click();
+  await expect(page.locator('#foundCard')).toBeVisible();
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Treasures book');
+  await page.locator('#tabJournal').click();
+  await expect(page.locator('#journalTreasures [data-treasure]')).toHaveCount(1);
+  await expect(page.locator('#journalMoments li')).toHaveCount(1, { timeout: 8000 });
+
+  await page.locator('#tabSettings').click();
+  await expect(page.locator('[data-style-option="cozy"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('#switchGentle')).toHaveCount(0);
+  await page.locator('[data-style-option="tamagotchi"]').click();
+  await expect(page.locator('#switchGentle')).toBeAttached();
+});

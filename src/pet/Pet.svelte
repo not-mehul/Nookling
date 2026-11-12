@@ -7,6 +7,8 @@
   import { onMount } from 'svelte';
   import { BODY, EYE, ellipsePath, fluffPath, starPath } from './geometry';
   import { furToken, type Expression, type Form, type Prop, type Reaction, type Stage } from './types';
+  import MomentPropArt from '../world/art/MomentProp.svelte';
+  import type { MomentProp } from '../world/moments';
 
   interface Props {
     stage?: Stage;
@@ -27,6 +29,8 @@
     label: string;
     /** What it wears or has beside it. */
     wear?: readonly Prop[];
+    /** The thing it is caught with in a little moment (src/world/moments.ts). */
+    moment?: MomentProp | null;
   }
 
   let {
@@ -41,7 +45,9 @@
     live = true,
     label,
     wear = [],
+    moment = null,
   }: Props = $props();
+  const BEHIND: readonly MomentProp[] = ['sunbeam', 'puddle', 'cloud'];
 
   const uid = `pet${Math.random().toString(36).slice(2, 8)}`;
   const body = fluffPath(BODY.r, BODY.bumps, BODY.depth, BODY.ruffle);
@@ -196,6 +202,7 @@
 
   <circle class="glow" r="118" fill="url(#{uid}-glow)" opacity={glowLevel} />
 
+  {#if moment && BEHIND.includes(moment)}<MomentPropArt prop={moment} />{/if}
   <g transform="translate(0 84) scale({scale}) translate(0 -84)">
     <ellipse class="shadow" cx="0" cy="88" rx="54" ry="8" />
 
@@ -347,6 +354,7 @@
       {/if}
     {/if}
   </g>
+  {#if moment && !BEHIND.includes(moment)}<MomentPropArt prop={moment} />{/if}
 </svg>
 
 <style>

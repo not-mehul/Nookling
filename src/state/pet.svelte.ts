@@ -28,11 +28,11 @@ import {
 import { settings } from './settings.svelte';
 
 const TICK_MS = 30_000;
-const LOGGED: ReadonlySet<string> = new Set(['hatched', 'grew', 'fell-asleep', 'woke', 'hungry', 'tired', 'bored', 'grubby', 'mess', 'unwell', 'recovered', 'back-from-sitter', 'good-day']);
+const LOGGED: ReadonlySet<string> = new Set(['hatched', 'grew', 'fell-asleep', 'woke', 'hungry', 'tired', 'bored', 'grubby', 'mess', 'unwell', 'recovered', 'back-from-sitter', 'good-day', 'tidied']);
 
-function schedule(): Schedule {
-  const { bedtime, wake, gentle } = settings.current;
-  return { bedtime, wake, gentle };
+export function schedule(): Schedule {
+  const { bedtime, wake, gentle, style } = settings.current;
+  return { bedtime, wake, gentle, style };
 }
 
 function uid(): string {
@@ -115,7 +115,7 @@ class PetState {
   }
 
   feed(food: Food): Promise<CareResult> {
-    return this.apply((pet, now) => feed(pet, food, now, canHave(food, pet.stage)), { kind: 'fed', detail: food.id });
+    return this.apply((pet, now) => feed(pet, food, now, canHave(food, pet.stage), settings.current.style), { kind: 'fed', detail: food.id });
   }
 
   play(game: string, score: number): Promise<CareResult> {

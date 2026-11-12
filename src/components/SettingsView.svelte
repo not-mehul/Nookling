@@ -7,6 +7,8 @@
   import { datedName, isNative, saveFile } from '../platform/output';
   import Sheet from './ui/Sheet.svelte';
   import { petState } from '../state/pet.svelte';
+  import { worldState } from '../state/world.svelte';
+  import { newWorld } from '../world/world';
   import { reminders } from '../state/reminders.svelte';
   import { settings } from '../state/settings.svelte';
   import { ui } from '../state/ui.svelte';
@@ -44,7 +46,7 @@
     saving = true;
     try {
       const now = new Date();
-      const bytes = await buildBackupZip(all.pet, all.log, settings.current, all.photos, now);
+      const bytes = await buildBackupZip(all.pet, all.log, settings.current, all.photos, now, worldState.world);
       const { savedTo } = await saveFile({ name: datedName(BACKUP_PREFIX, 'zip', now, true), data: bytes, mime: 'application/zip' });
       settings.update({ lastBackupAt: now.toISOString() });
       ui.notify(t('settings.backedUp', { where: savedTo ?? t('settings.backup') }), 'success');
@@ -73,6 +75,7 @@
     pending = null;
     if (!data) return;
     await petState.restore(data);
+    await worldState.save(data.world ?? newWorld(Date.now()));
     if (data.settings) settings.update({ ...data.settings, lastBackupAt: settings.current.lastBackupAt });
     ui.notify(t('settings.restored', { name: data.pet.name }), 'success');
   }
@@ -118,6 +121,17 @@
   {/if}
   <div class="panel">
     <div class="section-head"><h2>{t('settings.day')}</h2></div>
+    <div class="setting-row">
+      <span class="t-field-label" id="styleLabel">{t('settings.style')}</span>
+      <div class="segmented" role="radiogroup" aria-labelledby="styleLabel">
+        {#each ['cozy', 'tamagotchi'] as const as style (style)}
+          <button type="button" role="radio" aria-checked={settings.current.style === style} data-style-option={style} onclick={() => settings.update({ style })}>
+            {t(`settings.style.${style}`)}
+          </button>
+        {/each}
+      </div>
+    </div>
+    <p class="t-hint" id="styleHint">{t(`settings.style.${settings.current.style}Hint`)}</p>
     <div class="times">
       <label class="field">
         <span class="t-field-label">{t('settings.bedtime')}</span>
@@ -138,8 +152,12 @@
       </div>
     {/if}
     <div class="switches">
-      <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.reminders')} hint={t('settings.remindersHint')} onchange={(on) => void setReminders(on)} />
-      <Switch id="switchGentle" checked={settings.current.gentle} label={t('settings.gentle')} hint={t('settings.gentleHint')} onchange={(on) => settings.update({ gentle: on })} />
+      {#if settings.current.style === 'cozy'}
+        <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.invitations')} hint={t('settings.invitationsHint')} onchange={(on) => void setReminders(on)} />
+      {:else}
+        <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.reminders')} hint={t('settings.remindersHint')} onchange={(on) => void setReminders(on)} />
+        <Switch id="switchGentle" checked={settings.current.gentle} label={t('settings.gentle')} hint={t('settings.gentleHint')} onchange={(on) => settings.update({ gentle: on })} />
+      {/if}
     </div>
   </div>
   {#if pet && pet.stage !== 'seedpod'}
