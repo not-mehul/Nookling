@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// The pet sleeps from 22:30 to 07:00 by default, and care is refused while it
+// does, so every test runs at midday whatever the real time is.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setSystemTime(process.env.E2E_TIME ? new Date(process.env.E2E_TIME) : new Date(2026, 10, 12, 12, 0));
+});
+
 /** Names the pet, warms the seedpod until it hatches. */
 async function hatch(page: Page, name = 'Pip') {
   await page.goto('/');
