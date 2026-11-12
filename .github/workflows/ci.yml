@@ -1,0 +1,101 @@
+name: CI
+
+# One quick job on pull requests and on main: lint, typecheck, unit tests,
+# a production build and the Playwright tests. The Android build and the
+# emulator tests are slow and rarely catch anything the web checks miss, so
+# they run only when asked: Actions → CI → Run workflow → "Android". Every
+# release tag still builds the APK (release.yml).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      android:
+        description: Also build the APKs and run the emulator tests (about 10 minutes)
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      # Builds the app, then runs the end-to-end tests against it.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+
+  android:
+    name: Android build and emulator tests
+    if: github.event_name == 'workflow_dispatch' && inputs.android
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - run: npm ci
+      - run: npm run sync
+      - name: Assemble, lint
+        working-directory: android
+        run: ./gradlew assembleDebug assembleRelease assembleDebugAndroidTest lintDebug
+      - name: Gather the APKs, the release one signed with the debug key for the smoke test
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          mkdir -p apks/debug apks/release apks/androidTest/debug
+          cp android/app/build/outputs/apk/debug/app-debug.apk apks/debug/
+          cp android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk apks/androidTest/debug/
+          "$BT/apksigner" sign --ks ~/.android/debug.keystore --ks-pass pass:android \
+            --out apks/release/app-release-smoke.apk \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # API 36 only: the API 37 emulator image aborts in system_server
+      # ("!rcEnc->featureInfo()->hasReadColorBufferDma"), a guest graphics
+      # driver bug. Add 37 back once a fixed image ships.
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          cores: 4
+          ram-size: 4096M
+          disk-size: 6G
+          disable-animations: true
+          # Start adb before the emulator; if the emulator comes up first it can
+          # stay "offline" for the whole boot timeout.
+          pre-emulator-launch-script: adb start-server
+          emulator-boot-timeout: 420
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none
+          script: scripts/android-emulator-tests.sh apks

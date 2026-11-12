@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the web UI's background so there's no white flash on launch:
+         dusk-dawn's --bg-grad-mid (Dusk). -->
+    <color name="nookling_surface">#0F0D0B</color>
+</resources>

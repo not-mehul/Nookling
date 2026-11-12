@@ -1,0 +1,60 @@
+{
+  "name": "nookling",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nookling — a small round friend to feed, play with and put to bed.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "lint": "eslint . && dusk-dawn colours",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "dusk-dawn check && npm run lint && npm run typecheck && npm test",
+    "icons": "node scripts/build-icons.mjs",
+    "sheet": "vite build && node scripts/character-sheet.mjs",
+    "test:e2e": "vite build && playwright test",
+    "sync": "npm run build && cap sync android",
+    "android": "npm run sync && cap open android",
+    "android:run": "npm run sync && cap run android",
+    "android:apk": "npm run sync && cd android && ./gradlew assembleDebug"
+  },
+  "license": "MIT",
+  "author": "Mehul Sen",
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/share": "^8.0.3",
+    "dexie": "^4.4.7",
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@capacitor/cli": "^8.6.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.6",
+    "dusk-dawn": "github:not-mehul/dusk-dawn#e4e509c00f142339baad6aa855095e24cf879f31",
+    "eslint": "^10.14.0",
+    "eslint-plugin-svelte": "^3.24.1",
+    "fake-indexeddb": "^6.2.8",
+    "globals": "^17.14.0",
+    "sharp": "^0.35.5",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,110 @@
+@import 'dusk-dawn/tokens.css';
+@import 'dusk-dawn/components.css';
+
+/* Nookling's own layout. Everything visual comes from dusk-dawn; this file only
+   places it (style.md §6 and §13). */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  /* Edge to edge: the --inset-* variables (components.css) hold the system
+     bar insets, because index.html declares viewport-fit=cover. */
+  padding: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+}
+
+ul,
+ol,
+p,
+h1,
+h2,
+h3,
+dl,
+dd,
+figure,
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 3.5rem;
+}
+@media (min-width: 640px) {
+  .container {
+    padding: 4rem 1.5rem 5rem;
+  }
+}
+
+.site-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.site-title {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+/* The tagline runs the full width under the title and the toggle. */
+.site-header .t-tagline {
+  grid-column: 1 / -1;
+}
+.site-header.compact {
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.site-header.compact .t-page-title {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.app-tabs {
+  margin-bottom: var(--space-6);
+}
+
+.status-scrim {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  height: var(--inset-top);
+  background: var(--bg-grad-top);
+  pointer-events: none;
+}
+
+.panel {
+  margin-bottom: 1.25rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+.section-head h2 {
+  font-family: var(--font-serif);
+  font-size: 1.875rem;
+  line-height: 1.15;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--text-heading);
+  letter-spacing: -0.01em;
+}
+
+.btn-icon:disabled {
+  color: var(--text-faint);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
