@@ -9,6 +9,8 @@
   import { furToken, type Expression, type Form, type Prop, type Reaction, type Stage } from './types';
   import MomentPropArt from '../world/art/MomentProp.svelte';
   import type { MomentProp } from '../world/moments';
+  import type { Outfit } from '../world/wardrobe';
+  import ClothesArt from './ClothesArt.svelte';
 
   interface Props {
     stage?: Stage;
@@ -31,6 +33,8 @@
     wear?: readonly Prop[];
     /** The thing it is caught with in a little moment (src/world/moments.ts). */
     moment?: MomentProp | null;
+    /** Clothes from the wardrobe. */
+    outfit?: Outfit;
   }
 
   let {
@@ -46,6 +50,7 @@
     label,
     wear = [],
     moment = null,
+    outfit = {},
   }: Props = $props();
   const BEHIND: readonly MomentProp[] = ['sunbeam', 'puddle', 'cloud'];
 
@@ -295,6 +300,7 @@
             <ellipse class="tongue" cx="0" cy="36.5" rx="5.5" ry="3" />
           {/if}
         </g>
+        <ClothesArt {outfit} />
         {#if wear.includes('bookshelf')}
           <g class="prop glasses">
             <circle cx={-EYE.x} cy={EYE.y} r="31" />

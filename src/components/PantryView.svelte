@@ -2,7 +2,10 @@
   // The Pantry: every food, what it does, and when it unlocks. "Give" takes
   // it to the Nook and feeds it. Nothing to buy and nothing runs out.
   import FoodIcon from './FoodIcon.svelte';
-  import { FOODS, canHave, type FoodKind } from '../domain/foods';
+  import GardenPanel from './GardenPanel.svelte';
+  import { canHave, pantry, type Food, type FoodKind } from '../domain/foods';
+  import { worldState } from '../state/world.svelte';
+  import { grownFoods } from '../world/garden';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { petState } from '../state/pet.svelte';
   import { ui } from '../state/ui.svelte';
@@ -10,8 +13,9 @@
   const KINDS: FoodKind[] = ['meal', 'fruit', 'snack', 'treat'];
   const pet = $derived(petState.pet);
   const stage = $derived(pet?.stage ?? 'seedpod');
+  const foods = $derived(pantry(grownFoods(worldState.world.garden)));
 
-  function effects(food: (typeof FOODS)[number]): string[] {
+  function effects(food: Food): string[] {
     const out: string[] = [];
     if (food.fullness >= 0.3) out.push(t('pantry.filling'));
     else if (food.fullness > 0) out.push(t('pantry.light'));
@@ -23,11 +27,12 @@
 
 <div id="viewPantry" role="tabpanel" aria-labelledby="tabPantry">
   <p class="t-hint intro">{t('pantry.intro')}</p>
+  {#if pet && pet.stage !== 'seedpod'}<GardenPanel />{/if}
   {#each KINDS as kind (kind)}
     <section class="panel">
       <div class="section-head"><h2>{t(`pantry.${kind}` as MessageKey)}</h2></div>
       <ul class="foods">
-        {#each FOODS.filter((f) => f.kind === kind) as food (food.id)}
+        {#each foods.filter((f) => f.kind === kind) as food (food.id)}
           {@const ok = canHave(food, stage)}
           <li class="food" class:is-locked={!ok}>
             <FoodIcon {food} size={44} />

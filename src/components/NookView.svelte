@@ -13,7 +13,12 @@
   import { known } from '../world/tricks';
   import type { Game } from '../domain/games';
   import Icon from './ui/Icon.svelte';
-  import { FOODS, canHave, type Food } from '../domain/foods';
+  import { canHave, pantry, type Food } from '../domain/foods';
+  import DecorLayer from './DecorLayer.svelte';
+  import DecorPanel from './DecorPanel.svelte';
+  import WardrobeSheet from './WardrobeSheet.svelte';
+  import { DECOR } from '../world/decor';
+  import { grownFoods } from '../world/garden';
   import { NEEDS, type PetEvent, type Refusal } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { cheer, hatchEgg } from '../lib/delight';
@@ -51,6 +56,9 @@
   let cuddling = $state(false);
   let playOpen = $state(false);
   let fidgetOpen = $state(false);
+  let wardrobeOpen = $state(false);
+  let decorating = $state(false);
+  const foods = $derived(pantry(grownFoods(worldState.world.garden)));
   let tricksOpen = $state(false);
   /** Its question in a picture bubble, until you reply. */
   let asking = $state.raw<Question | null>(null);
@@ -378,7 +386,17 @@
       say(t('tricks.showsOff', { name, trick: t(`trick.${trick.id}` as MessageKey).toLowerCase() }), 3000);
       return move(trick.move);
     }
-    if (roll < 0.28) {
+    const things = DECOR.filter((d) => worldState.world.decor[d.id]);
+    if (roll < 0.36 && things.length) {
+      const d = things[Math.floor(Math.random() * things.length)]!;
+      const at = worldState.world.decor[d.id]!;
+      look = { x: (at.x - 0.5) * 2, y: (at.y - 0.5) * 1.2 };
+      setTimeout(() => (look = { x: 0, y: 0 }), 2000);
+      say(t(`decor.${d.id}.use` as MessageKey, { name }), 3500);
+      hold('happy', 1200);
+      return move(d.use);
+    }
+    if (roll < 0.42) {
       const told = recollection(worldState.world.chat);
       if (told) return say(t(`chat.${told[0]}.${told[1]}.recall` as MessageKey, { name }));
     }
@@ -548,11 +566,23 @@
     <Adopt />
   {:else}
     <section class="panel room" class:is-night={pet.asleep} aria-label={t('tabs.nook')} onpointermove={follow} onpointerleave={() => (look = { x: 0, y: 0 })}>
+      {#if !pet.awayUntil && pet.stage !== 'seedpod'}
+        <div class="room-tools">
+          <button type="button" class="btn-icon" id="btnDecorate" aria-pressed={decorating} aria-label={t('decor.title')} title={t('decor.title')} onclick={() => (decorating = !decorating)}>
+            <Icon name="brush" size={20} />
+          </button>
+          <button type="button" class="btn-icon" id="btnWardrobe" aria-label={t('wardrobe.open')} title={t('wardrobe.open')} onclick={() => (wardrobeOpen = true)}>
+            <Icon name="shirt" size={20} />
+          </button>
+        </div>
+      {/if}
       {#if !pet.awayUntil}
         <button type="button" class="btn-icon snap" id="btnPicture" disabled={snapping} aria-label={t('nook.picture')} title={t('nook.picture')} onclick={picture}>
           <Icon name="camera" size={20} />
         </button>
       {/if}
+      <div class="scene">
+      <DecorLayer editing={decorating} night={pet.asleep} />
       <div class="pet-frame" bind:this={frame}>
         <button
           type="button"
@@ -574,6 +604,7 @@
             unwell={pet.unwell}
             label={statusLine}
             {wear}
+            outfit={pet.stage === 'seedpod' ? {} : worldState.world.wardrobe.wearing}
             moment={moment?.prop ?? null}
           />
         </button>
@@ -586,6 +617,7 @@
         {#each [0, 1, 2].slice(0, pet.messes) as i (i)}
           <svg class="mess mess-{i}" viewBox="-12 -8 24 16" aria-hidden="true"><path d="M-10 6Q-10 -2 -4 -3Q-2 -8 3 -6Q9 -6 10 6Z" /></svg>
         {/each}
+      </div>
       </div>
       {#if gifts}
         <button type="button" class="gift-button dd-pressable" id="btnGift" aria-label={t('gift.open', { name })} onclick={openGift}>
@@ -609,7 +641,7 @@
         <div class="tray" id="foodTray">
           <p class="t-hint">{t('tray.hint', { name })}</p>
           <ul class="tray-list">
-            {#each FOODS as food (food.id)}
+            {#each foods as food (food.id)}
               {@const ok = canHave(food, pet.stage)}
               <li>
                 <button
@@ -637,7 +669,9 @@
       {/if}
     </section>
 
-    {#if pet.awayUntil}
+    {#if decorating}
+      <DecorPanel ondone={() => (decorating = false)} />
+    {:else if pet.awayUntil}
       <button type="button" class="btn btn-primary btn-block" id="btnComeBackNook" onclick={() => petState.comeBack()}>{t('care.comeBack', { name })}</button>
     {:else if pet.stage !== 'seedpod'}
       <section class="panel needs" aria-label={t('needs.label')}>
@@ -676,6 +710,10 @@
 
 {#if playOpen && pet}
   <PlaySheet {name} stage={pet.stage} form={pet.form} onresult={played} onclose={() => (playOpen = false)} />
+{/if}
+
+{#if wardrobeOpen && pet}
+  <WardrobeSheet {name} stage={pet.stage} form={pet.form} onclose={() => (wardrobeOpen = false)} />
 {/if}
 
 {#if fidgetOpen && pet}
@@ -773,14 +811,39 @@
       animation: none;
     }
   }
+  /* Above the nook's things (DecorLayer). */
+  .status-line,
+  .welcome,
+  .tray,
+  .warmth,
+  .found {
+    position: relative;
+    z-index: 1;
+  }
+  .room-tools {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 3;
+    display: flex;
+    gap: var(--space-1);
+  }
   .snap {
     position: absolute;
     top: var(--space-3);
     right: var(--space-3);
     z-index: 1;
   }
+  .scene {
+    position: relative;
+    width: 100%;
+    display: grid;
+    justify-items: center;
+    padding: var(--space-4) 0 var(--space-2);
+  }
   .pet-frame {
     position: relative;
+    z-index: 1;
     width: min(100%, 340px);
   }
   .pet-button {

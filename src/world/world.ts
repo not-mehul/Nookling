@@ -7,6 +7,9 @@ import { DAY, HOUR, isNight, type Pet, type Schedule } from '../domain/pet';
 import { seeded } from './random';
 import { pickTreasure } from './treasures';
 import { newArcade, type Arcade } from './arcade';
+import { DECOR, type DecorId } from './decor';
+import { PLOTS, SEEDS, newGarden, type Garden } from './garden';
+import { CLOTHES, newWardrobe, type Wardrobe } from './wardrobe';
 
 export interface Find {
   id: string;
@@ -32,6 +35,10 @@ export interface World {
   tricks: Record<string, number>;
   /** Chat: the reply you gave to each question, by index. */
   chat: Record<string, number>;
+  /** The nook's things that are out, and where (fractions of the room). */
+  decor: Partial<Record<DecorId, { x: number; y: number }>>;
+  garden: Garden;
+  wardrobe: Wardrobe;
 }
 
 /** It wanders off for a find every few hours you're away (not at night). */
@@ -42,7 +49,7 @@ export const MAX_WAITING = 3;
 export const MOMENT_AFTER = 20 * 60_000;
 
 export function newWorld(now: number): World {
-  return { id: 'world', lastForage: now, waiting: [], treasures: {}, moments: {}, lastSeen: now, arcade: newArcade(), tricks: {}, chat: {} };
+  return { id: 'world', lastForage: now, waiting: [], treasures: {}, moments: {}, lastSeen: now, arcade: newArcade(), tricks: {}, chat: {}, decor: {}, garden: newGarden(), wardrobe: newWardrobe() };
 }
 
 /** World data read back from storage or a backup, with anything missing filled in. */
@@ -64,6 +71,20 @@ export function normaliseWorld(raw: unknown, now = Date.now()): World {
     arcade: { ...newArcade(), ...record<never>(r.arcade), best: record(r.arcade?.best), played: record(r.arcade?.played) },
     tricks: record(r.tricks),
     chat: record(r.chat),
+    decor: Object.fromEntries(
+      Object.entries(record<{ x: number; y: number }>(r.decor)).filter(([id, p]) => DECOR.some((d) => d.id === id) && p && typeof p.x === 'number' && typeof p.y === 'number'),
+    ),
+    garden: {
+      plots: Array.from({ length: PLOTS }, (_, i) => {
+        const p = Array.isArray(r.garden?.plots) ? r.garden.plots[i] : null;
+        return p && SEEDS.some((s) => s.id === p.seed) && typeof p.plantedAt === 'number' ? p : null;
+      }),
+      harvested: record(r.garden?.harvested),
+    },
+    wardrobe: {
+      wearing: Object.fromEntries(Object.entries(record<string>(r.wardrobe?.wearing)).filter(([slot, id]) => CLOTHES.some((c) => c.id === id && c.slot === slot))),
+      kept: record(r.wardrobe?.kept),
+    },
   };
 }
 

@@ -213,3 +213,36 @@ test('teaches a trick, chats, and fidgets', async ({ page }) => {
   await page.mouse.up();
   await expect(page.getByText('1 boing', { exact: true })).toBeVisible();
 });
+
+test('decorates the nook, dresses up, and plants the garden', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#btnDecorate').click();
+  await expect(page.locator('#decorPanel')).toBeVisible();
+  await expect(page.locator('[data-decor-option="ball"]')).toBeDisabled();
+  await page.locator('[data-decor-option="rug"]').click();
+  const rug = page.locator('.decor-layer [data-decor="rug"]');
+  await expect(rug).toBeVisible();
+  await rug.focus();
+  await page.keyboard.press('ArrowUp');
+  await page.locator('#btnDecorDone').click();
+  await expect(page.locator('#decorPanel')).toHaveCount(0);
+  await expect(page.locator('.decor-layer [data-decor="rug"]')).toBeVisible();
+
+  await page.locator('#btnWardrobe').click();
+  await page.locator('[data-clothes="beret"]').click();
+  await expect(page.locator('[data-clothes="beret"]')).toHaveAttribute('aria-pressed', 'true');
+  // Autumn, so the acorn cap is out and the woolly hat waits for winter.
+  await expect(page.locator('[data-clothes="acorn-cap"]')).toBeEnabled();
+  await expect(page.locator('[data-clothes="woolly-hat"]')).toBeDisabled();
+  await page.keyboard.press('Escape');
+
+  await page.locator('#tabPantry').click();
+  await page.locator('[data-sow="0"]').click();
+  await page.locator('[data-seed="mint"]').click();
+  await expect(page.locator('[data-plot="0"]')).toContainText('Mint');
+  await expect(page.locator('[data-plot="0"]')).toContainText('Ripe in 2 hours');
+
+  await page.reload();
+  await page.locator('#tabPantry').click();
+  await expect(page.locator('[data-plot="0"]')).toContainText('Mint');
+});

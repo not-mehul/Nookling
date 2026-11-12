@@ -6,6 +6,10 @@ import { db } from '../data/db';
 import type { Game } from '../domain/games';
 import { recordGame, type Played } from '../world/arcade';
 import { LEARN_AFTER, teach, type Trick } from '../world/tricks';
+import { place, type DecorId } from '../world/decor';
+import { harvest, plant, type SeedId } from '../world/garden';
+import { seasonAt } from '../world/treasures';
+import { collectSeason, wear, type ClothesId } from '../world/wardrobe';
 import { pickMoment, type Moment } from '../world/moments';
 import { forage, newWorld, normaliseWorld, receive, stayed, MOMENT_AFTER, type Find, type World } from '../world/world';
 import { petState, schedule } from './pet.svelte';
@@ -49,7 +53,38 @@ class WorldState {
       this.moment = pickMoment(pet.traits, now, Math.random, this.moment?.id);
       caught = this.moment.id;
     }
-    void this.update((w) => remember(stayed(forage(w, pet, now, schedule()), now), caught, now));
+    void this.update((w) => remember(stayed(forage(this.season(w, now), pet, now, schedule()), now), caught, now));
+  }
+
+  /** Seasonal clothes in season join the wardrobe. */
+  private season(w: World, now: number): World {
+    const wardrobe = collectSeason(w.wardrobe, seasonAt(now), now);
+    return wardrobe === w.wardrobe ? w : { ...w, wardrobe };
+  }
+
+  /** Puts a thing out in the nook, moves it, or (with null) puts it away. */
+  async arrange(id: DecorId, at: { x: number; y: number } | null): Promise<void> {
+    const decor = { ...this.world.decor };
+    if (at) decor[id] = place(at.x, at.y);
+    else delete decor[id];
+    await this.save({ ...this.world, decor });
+  }
+
+  async plant(plot: number, seed: SeedId, now = Date.now()): Promise<void> {
+    await this.save({ ...this.world, garden: plant(this.world.garden, plot, seed, now) });
+  }
+
+  /** Picks a ripe plant: the seed, and whether that was its first harvest. */
+  async harvest(plot: number, now = Date.now()): Promise<{ seed: SeedId; first: boolean } | null> {
+    const { garden, seed } = harvest(this.world.garden, plot, now);
+    if (!seed) return null;
+    const first = !this.world.garden.harvested[seed];
+    await this.save({ ...this.world, garden });
+    return { seed, first };
+  }
+
+  async wear(id: ClothesId): Promise<void> {
+    await this.save({ ...this.world, wardrobe: wear(this.world.wardrobe, id) });
   }
 
   /** Leaving: it starts its wanders from here. */

@@ -38,10 +38,24 @@ export const FOODS: readonly Food[] = [
   { id: 'star-jelly', name: 'Star jelly', kind: 'treat', colour: 'berry', fullness: 0.06, mood: 0.25, health: -0.01, from: 'grown', note: 'Wobbles. Only for the grown-ups.' },
 ];
 
+/** Grown in the garden: each joins the Pantry for good after its first harvest. */
+export const GARDEN_FOODS: readonly Food[] = [
+  { id: 'mint-sprig', name: 'Mint sprig', kind: 'snack', colour: 'leaf', fullness: 0.08, mood: 0.1, health: 0.05, from: 'sprout', note: 'Grown in your garden. Cool on the tongue.' },
+  { id: 'strawberry', name: 'Strawberry', kind: 'fruit', colour: 'berry', fullness: 0.15, mood: 0.12, health: 0.05, from: 'sprout', note: 'Grown in your garden. Sun-warm.' },
+  { id: 'pea-pod', name: 'Pea pod', kind: 'snack', colour: 'leaf', fullness: 0.12, mood: 0.08, health: 0.06, from: 'sprout', note: 'Grown in your garden. Pop, pop, pop.' },
+  { id: 'baby-carrot', name: 'Baby carrot', kind: 'fruit', colour: 'honey', fullness: 0.2, mood: 0.06, health: 0.08, from: 'nookling', note: 'Grown in your garden. Crunchy and proud.' },
+  { id: 'little-pumpkin', name: 'Little pumpkin', kind: 'meal', colour: 'honey', fullness: 0.45, mood: 0.1, health: 0.06, from: 'nookling', note: 'Grown in your garden. Roasted, it is a feast.' },
+];
+
 const ORDER: readonly Stage[] = ['seedpod', 'sprout', 'nookling', 'grown'];
 
 export function foodById(id: string): Food | undefined {
-  return FOODS.find((f) => f.id === id);
+  return FOODS.find((f) => f.id === id) ?? GARDEN_FOODS.find((f) => f.id === id);
+}
+
+/** The Pantry: every food, plus those grown in the garden (by id). */
+export function pantry(grown: readonly string[]): Food[] {
+  return [...FOODS, ...GARDEN_FOODS.filter((f) => grown.includes(f.id))];
 }
 
 /** Whether a pet at this stage can have the food yet. */
