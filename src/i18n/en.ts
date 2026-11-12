@@ -111,7 +111,10 @@ const en = {
   'away.recovered': 'felt better',
 
   'event.grew.nookling': '{name} has grown into a proper nookling.',
-  'event.grew.grown': '{name} is all grown up.',
+  'event.grew.lamplighter': '{name} has grown into a Lamplighter, glowing with all that attention.',
+  'event.grew.gardener': '{name} has grown into a Gardener. All those good meals took root.',
+  'event.grew.dreamer': '{name} has grown into a Dreamer, well rested and starry.',
+  'event.grew.scamp': '{name} has grown into a Scamp. Tufty, cheeky and very pleased with itself.',
   'event.unwell': '{name} isn’t feeling well. Food, rest and a cuddle will help.',
   'event.recovered': '{name} is feeling better.',
 

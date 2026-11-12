@@ -14,7 +14,8 @@
   import { petGestures } from '../pet/gestures';
   import { buzz } from '../platform/haptics';
   import { chirp } from '../platform/sound';
-  import { NEED_WORDS, glowFor, grubbiness, restingFace, status, summarise } from '../pet/behaviour';
+  import { NEED_WORDS, drowsy, glowFor, grubbiness, idleBeat, restingFace, status, summarise } from '../pet/behaviour';
+  import { settings } from '../state/settings.svelte';
   import type { Expression, Reaction } from '../pet/types';
   import { petState, type CareResult } from '../state/pet.svelte';
   import { ui } from '../state/ui.svelte';
@@ -40,7 +41,10 @@
   let welcome = $state('');
   let busy = $state(false);
 
-  const face = $derived(pet ? (held ?? restingFace(pet)) : 'content');
+  /** Ticks each minute, so it gets drowsy before bedtime with the app left open. */
+  let clock = $state(Date.now());
+  const sleepyHour = $derived(drowsy(clock, settings.current));
+  const face = $derived(pet ? (held ?? restingFace(pet, sleepyHour)) : 'content');
   const statusLine = $derived(pet ? t(`status.${status(pet)}` as MessageKey, { name }) : '');
   let heldTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -80,7 +84,9 @@
     if (!pet) return;
     if (pet.stage === 'seedpod') {
       move('wobble');
+      buzz('light');
       if (await petState.warm()) {
+        chirp('hatch');
         cheer(frame, { count: 80 });
         ui.notify(t('pod.hatched', { name }), 'celebrate');
         hold('surprised', 1600);
@@ -248,6 +254,32 @@
     }
   }
 
+  function idle(kind: ReturnType<typeof idleBeat>) {
+    switch (kind) {
+      case 'look':
+        look = { x: Math.random() * 2 - 1, y: Math.random() * 1.2 - 0.6 };
+        setTimeout(() => (look = { x: 0, y: 0 }), 1600);
+        return;
+      case 'hop':
+        return move('hop');
+      case 'yawn':
+        hold('sleepy', 1400);
+        return chirp('yawn');
+      case 'spin':
+        return move('spin');
+      case 'chirp':
+        hold('happy', 700);
+        return chirp('boop');
+      case 'ruffle':
+        return move('shiver');
+      case 'peek':
+        look = { x: -1, y: 0.4 };
+        hold('surprised', 1200);
+        setTimeout(() => (look = { x: 0, y: 0 }), 1200);
+        return;
+    }
+  }
+
   function wait(ms: number) {
     return new Promise((r) => setTimeout(r, ms));
   }
@@ -257,7 +289,9 @@
     for (const e of events) {
       if (e.kind === 'grew' && e.stage && e.stage !== 'sprout') {
         cheer(frame, { count: 90 });
-        ui.notify(t(e.stage === 'grown' ? 'event.grew.grown' : 'event.grew.nookling', { name }), 'celebrate');
+        chirp('hatch');
+        const form = petState.pet?.form;
+        ui.notify(e.stage === 'grown' && form ? t(`event.grew.${form}` as MessageKey, { name }) : t('event.grew.nookling', { name }), 'celebrate');
       } else if (e.kind === 'unwell') ui.notify(t('event.unwell', { name }), 'info');
       else if (e.kind === 'recovered') ui.notify(t('event.recovered', { name }), 'success');
     }
@@ -284,22 +318,22 @@
     tell(away.filter((e) => e.kind === 'grew'));
     const stop = petState.onEvents(tell);
 
-    // Idle beats: now and then it looks around.
+    // Idle beats: now and then it does a little something, picked by its traits.
     let timer: ReturnType<typeof setTimeout>;
     const beat = () => {
       timer = setTimeout(
         () => {
-          if (pet && !pet.asleep && pet.stage !== 'seedpod' && !held) {
-            look = { x: Math.random() * 2 - 1, y: Math.random() * 1.2 - 0.6 };
-            setTimeout(() => (look = { x: 0, y: 0 }), 1600);
-          }
+          const p = petState.pet;
+          if (p && !p.asleep && !p.awayUntil && p.stage !== 'seedpod' && !held && !busy && !document.hidden) idle(idleBeat(p.traits));
           beat();
         },
         8000 + Math.random() * 12000,
       );
     };
     beat();
+    const minute = setInterval(() => (clock = Date.now()), 60_000);
     return () => {
+      clearInterval(minute);
       stop();
       clearTimeout(timer);
       clearTimeout(heldTimer);

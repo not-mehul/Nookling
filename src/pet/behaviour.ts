@@ -1,11 +1,18 @@
 // How the pet looks and what its status line says, from its state. Pure, so
 // the Nook, share cards and tests agree.
 
-import { LOW, NEEDS, type Need, type Pet, type PetEvent } from '../domain/pet';
+import { HOUR, LOW, NEEDS, nextBoundary, isNight, type Need, type Pet, type PetEvent, type Schedule, type Trait } from '../domain/pet';
 import type { Expression } from './types';
 
+/** Within half an hour of bedtime, it gets drowsy. */
+export function drowsy(now: number, schedule: Schedule): boolean {
+  if (isNight(now, schedule)) return false;
+  const next = nextBoundary(now, schedule);
+  return isNight(next, schedule) && next - now <= HOUR / 2;
+}
+
 /** The resting face for the pet's state: the lowest need wins. */
-export function restingFace(pet: Pet): Expression {
+export function restingFace(pet: Pet, sleepyHour = false): Expression {
   if (pet.stage === 'seedpod') return 'content';
   if (pet.asleep) return 'asleep';
   if (pet.unwell) return 'unwell';
@@ -14,7 +21,31 @@ export function restingFace(pet: Pet): Expression {
   if (low === 'fullness') return 'hungry';
   if (low === 'mood') return 'sad';
   if (low === 'tidiness') return 'grumpy';
-  return 'content';
+  return sleepyHour ? 'sleepy' : 'content';
+}
+
+export type IdleBeat = 'look' | 'hop' | 'yawn' | 'spin' | 'chirp' | 'ruffle' | 'peek';
+
+/** What it does now and then when nothing is happening. Traits tip the odds. */
+export function idleBeat(traits: readonly Trait[], random: () => number = Math.random): IdleBeat {
+  const weights: Record<IdleBeat, number> = { look: 5, hop: 2, yawn: 1, spin: 0.6, chirp: 1, ruffle: 2, peek: 0.5 };
+  for (const trait of traits) {
+    if (trait === 'playful') {
+      weights.hop += 3;
+      weights.spin += 1.5;
+    }
+    if (trait === 'sleepy') weights.yawn += 3;
+    if (trait === 'chatty') weights.chirp += 3;
+    if (trait === 'shy') weights.peek += 3;
+    if (trait === 'tidy') weights.ruffle += 2;
+    if (trait === 'greedy') weights.look += 2;
+  }
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  let roll = random() * total;
+  for (const [beat, w] of Object.entries(weights) as [IdleBeat, number][]) {
+    if ((roll -= w) < 0) return beat;
+  }
+  return 'look';
 }
 
 export type Status = 'seedpod' | 'away' | 'asleep' | 'unwell' | 'tired' | 'hungry' | 'bored' | 'grubby' | 'thriving' | 'content';

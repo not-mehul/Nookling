@@ -253,3 +253,29 @@ describe('reading the pet', () => {
     expect(new Set(FOODS.map((f) => f.id)).size).toBe(12);
   });
 });
+
+describe('behaviour', async () => {
+  const { drowsy, idleBeat, restingFace, status } = await import('../../src/pet/behaviour');
+
+  it('gets drowsy in the half hour before bedtime', () => {
+    expect(drowsy(at(0, 22, 10), SCHEDULE)).toBe(true);
+    expect(drowsy(at(0, 21, 50), SCHEDULE)).toBe(false);
+    expect(drowsy(at(0, 23), SCHEDULE)).toBe(false);
+    expect(restingFace(sprout(), true)).toBe('sleepy');
+  });
+
+  it('shows its lowest need on its face', () => {
+    expect(restingFace(sprout({ needs: { fullness: 0.1, energy: 0.2, mood: 1, tidiness: 1 } }))).toBe('hungry');
+    expect(restingFace(sprout({ asleep: true }))).toBe('asleep');
+    expect(status(sprout())).toBe('thriving');
+  });
+
+  it('picks idle beats by trait', () => {
+    const counts = (traits: Parameters<typeof idleBeat>[0]) => {
+      let yawns = 0;
+      for (let i = 0; i < 1000; i++) if (idleBeat(traits, () => i / 1000) === 'yawn') yawns++;
+      return yawns;
+    };
+    expect(counts(['sleepy'])).toBeGreaterThan(counts(['playful']));
+  });
+});
