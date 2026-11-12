@@ -61,7 +61,7 @@
   function line(e: LogEntry): string {
     const key = `log.${e.kind}` as MessageKey;
     if (e.kind === 'grew') return t('log.grew', { stage: t(`stage.${e.detail ?? 'nookling'}` as MessageKey) });
-    if (e.kind === 'fed') return t('log.fed', { detail: (foodById(e.detail ?? '')?.name ?? e.detail ?? '').toLowerCase() });
+    if (e.kind === 'fed') return t('log.fed', { detail: (foodById(e.detail ?? '')?.name ?? worldState.world.dishes.find((d) => d.id === e.detail)?.name ?? e.detail ?? '').toLowerCase() });
     if (e.kind === 'played') return t('log.played', { detail: e.detail && (GAMES as readonly string[]).includes(e.detail) ? t(`game.${e.detail as Game}`).toLowerCase() : '' });
     return t(key, { detail: e.detail ?? '' });
   }
@@ -166,6 +166,17 @@
         <p class="t-hint">{t('journal.visitorsEmpty')}</p>
       {/if}
     </div>
+
+    {#if worldState.world.books.length}
+      <div class="panel" id="journalBooks">
+        <div class="section-head"><h3>{t('journal.books', { name })}</h3></div>
+        <ul class="moments">
+          {#each worldState.world.books as b (b.title)}
+            <li><span class="t-data">{dateFmt(b.at)}</span> <i>{b.title}</i>{#if b.author}, {b.author}{/if}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
 
     <div class="panel" id="journalAlbum">
       <div class="section-head"><h3>{t('journal.album')}</h3></div>

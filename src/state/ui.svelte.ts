@@ -1,6 +1,7 @@
 // Navigation and transient UI state shared between components.
 
 import type { Food } from '../domain/foods';
+import type { NooklingLink } from '../platform/incoming';
 
 export type Tab = 'nook' | 'pantry' | 'journal' | 'settings';
 export type ToastKind = 'success' | 'error' | 'info' | 'celebrate';
@@ -29,6 +30,8 @@ class UiState {
   tab = $state<Tab>('nook');
   /** A food given from the Pantry, for the Nook to feed once it is showing. */
   pendingFood = $state.raw<Food | null>(null);
+  /** A dish or a book from a sibling app, waiting for a yes in the Nook. */
+  incoming = $state.raw<Exclude<NooklingLink, { kind: 'open' }> | null>(null);
   toast = $state.raw<Toast | null>(null);
   /** An easter egg for the Nook to act out: the Konami code, or a sneeze from the title. */
   trick = $state.raw<{ kind: 'konami' | 'sneeze'; n: number } | null>(null);

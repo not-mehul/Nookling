@@ -53,9 +53,9 @@ export function foodById(id: string): Food | undefined {
   return FOODS.find((f) => f.id === id) ?? GARDEN_FOODS.find((f) => f.id === id);
 }
 
-/** The Pantry: every food, plus those grown in the garden (by id). */
-export function pantry(grown: readonly string[]): Food[] {
-  return [...FOODS, ...GARDEN_FOODS.filter((f) => grown.includes(f.id))];
+/** The Pantry: every food, plus those grown in the garden (by id) and any others (dishes from Mise). */
+export function pantry(grown: readonly string[], more: readonly Food[] = []): Food[] {
+  return [...FOODS, ...GARDEN_FOODS.filter((f) => grown.includes(f.id)), ...more];
 }
 
 /** Whether a pet at this stage can have the food yet. */

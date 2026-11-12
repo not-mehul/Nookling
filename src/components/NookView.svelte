@@ -67,7 +67,7 @@
   let greeting = $state(false);
   const visit = $derived(pet && pet.stage !== 'seedpod' && !pet.awayUntil ? worldState.world.visit : null);
   let decorating = $state(false);
-  const foods = $derived(pantry(grownFoods(worldState.world.garden)));
+  const foods = $derived(pantry(grownFoods(worldState.world.garden), worldState.dishFoods));
   let tricksOpen = $state(false);
   /** Its question in a picture bubble, until you reply. */
   let asking = $state.raw<Question | null>(null);
@@ -140,6 +140,26 @@
     clearTimeout(sayTimer);
     saying = line;
     sayTimer = setTimeout(() => (saying = ''), ms);
+  }
+
+  // ── A dish from Mise or a book from BookShelf, once you say yes.
+  async function acceptSibling() {
+    const link = ui.incoming;
+    ui.incoming = null;
+    if (!link) return;
+    if (link.kind === 'cooked') {
+      await worldState.addDish(link.dish);
+      hold('happy', 1600);
+      move('bounce');
+      chirp('chomp');
+      ui.notify(t('sibling.dishAdded', { dish: link.dish, name }), 'celebrate');
+    } else {
+      await worldState.addBook(link.title, link.author);
+      hold('happy', 1600);
+      move('hop');
+      chirp('happy');
+      ui.notify(t('sibling.bookGiven', { title: link.title, name }), 'celebrate');
+    }
   }
 
   // ── Visitors
@@ -421,7 +441,15 @@
       hold('happy', 1200);
       return move(d.use);
     }
-    if (roll < 0.42) {
+    const books = worldState.world.books;
+    if (roll < 0.4 && books.length) {
+      const b = books[Math.floor(Math.random() * Math.min(books.length, 5))]!;
+      hold('content', 2500);
+      look = { x: 0, y: 0.7 };
+      setTimeout(() => (look = { x: 0, y: 0 }), 2500);
+      return say(t('sibling.reading', { name, title: b.title }), 4000);
+    }
+    if (roll < 0.46) {
       const told = recollection(worldState.world.chat);
       if (told) return say(t(`chat.${told[0]}.${told[1]}.recall` as MessageKey, { name }));
     }
@@ -665,6 +693,19 @@
             <span class="t-hint">{opened.treasure.note}</span>
           </span>
         </button>
+      {/if}
+      {#if ui.incoming && pet.stage !== 'seedpod'}
+        {@const link = ui.incoming}
+        <div class="found sibling-card" id="siblingCard" role="group" aria-label={t(link.kind === 'cooked' ? 'sibling.cookedLabel' : 'sibling.readLabel')}>
+          <span class="found-text">
+            <span class="found-name">{link.kind === 'cooked' ? t('sibling.cooked', { dish: link.dish, name }) : t('sibling.read', { title: link.title, name })}</span>
+            <span class="t-hint">{t(link.kind === 'cooked' ? 'sibling.cookedHint' : 'sibling.readHint', { name })}</span>
+            <span class="visitor-actions">
+              <button type="button" class="btn btn-secondary" id="btnSiblingYes" onclick={acceptSibling}>{t(link.kind === 'cooked' ? 'sibling.addDish' : 'sibling.giveBook')}</button>
+              <button type="button" class="btn btn-muted" id="btnSiblingNo" onclick={() => (ui.incoming = null)}>{t('sibling.notNow')}</button>
+            </span>
+          </span>
+        </div>
       {/if}
       {#if visit && greeting}
         {@const who = t(`visitor.${visit.id}` as MessageKey)}

@@ -46,8 +46,12 @@ function start(): void {
     );
     void reminders.clear();
     void reminders.check();
-    // nookling:// links from the other apps only ever open the Nook (style.md §14.1).
-    void listenForLinks(() => ui.go('nook'));
+    // nookling:// links from the other apps open the Nook (style.md §14.1).
+    // A dish from Mise or a book from BookShelf waits there for a yes.
+    void listenForLinks((link) => {
+      if (link.kind !== 'open') ui.incoming = link;
+      ui.go('nook');
+    });
   }
 }
 

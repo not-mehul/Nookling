@@ -13,7 +13,7 @@
   const KINDS: FoodKind[] = ['meal', 'fruit', 'snack', 'treat'];
   const pet = $derived(petState.pet);
   const stage = $derived(pet?.stage ?? 'seedpod');
-  const foods = $derived(pantry(grownFoods(worldState.world.garden)));
+  const foods = $derived(pantry(grownFoods(worldState.world.garden), worldState.dishFoods));
 
   function effects(food: Food): string[] {
     const out: string[] = [];

@@ -11,6 +11,8 @@ import { harvest, plant, type SeedId } from '../world/garden';
 import { pickTreasure, seasonAt } from '../world/treasures';
 import { collectSeason, wear, type ClothesId } from '../world/wardrobe';
 import { maybeVisit, stillHere } from '../world/visitors';
+import { addBook, addDish, dishFood } from '../world/siblings';
+import type { Food } from '../domain/foods';
 import { pickMoment, type Moment } from '../world/moments';
 import { forage, newWorld, normaliseWorld, receive, stayed, MOMENT_AFTER, type Find, type World } from '../world/world';
 import { petState, schedule } from './pet.svelte';
@@ -74,6 +76,21 @@ class WorldState {
     const met = this.world.visitors[v.id] ?? { met: 1, favours: 0 };
     const thanks = { id: `${v.id}:${now}`, treasureId: pickTreasure(now, Math.random()).id, at: now };
     await this.save({ ...this.world, visit: null, waiting: [...this.world.waiting, thanks], visitors: { ...this.world.visitors, [v.id]: { ...met, favours: met.favours + 1 } } });
+  }
+
+  /** Every food beyond the standard Pantry: dishes from Mise. */
+  get dishFoods(): Food[] {
+    return this.world.dishes.map(dishFood);
+  }
+
+  /** A dish cooked in Mise, added to the Pantry once you say yes. */
+  async addDish(name: string, now = Date.now()): Promise<void> {
+    await this.save({ ...this.world, dishes: addDish(this.world.dishes, name, now) });
+  }
+
+  /** A book finished in BookShelf, given to it to read. */
+  async addBook(title: string, author: string, now = Date.now()): Promise<void> {
+    await this.save({ ...this.world, books: addBook(this.world.books, title, author, now) });
   }
 
   /** Wave them off. */

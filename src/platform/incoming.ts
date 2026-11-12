@@ -2,6 +2,10 @@
 // nookling:// links from the sibling apps (style.md §14.1).
 //   nookling://open, and any action Nookling doesn't know, just open the app
 //   at the Nook. A link never changes anything by itself.
+//   nookling://cooked?dish=…&source=mise   a dish you cooked in Mise: the Nook
+//     offers to add it to the Pantry.
+//   nookling://read?title=…&author=…&source=bookshelf   a book you finished:
+//     the Nook offers to give the pet something to read.
 // Android registers the scheme with a VIEW intent filter; links arrive
 // through appUrlOpen.
 // ============================================================
@@ -10,11 +14,21 @@ import { App } from '@capacitor/app';
 import { parseLink } from './links';
 import { isNative } from './output';
 
-export type NooklingLink = { kind: 'open' };
+export type NooklingLink = { kind: 'open' } | { kind: 'cooked'; dish: string } | { kind: 'read'; title: string; author: string };
+
+/** Long enough for any real title; a link is never a place to paste a novel. */
+const MAX_TEXT = 120;
+const clean = (v: string | undefined) => (v ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT);
 
 /** What a nookling:// link asks for, or null for anything that isn't one. */
 export function readNooklingLink(url: string): NooklingLink | null {
-  return parseLink(url, 'nookling') ? { kind: 'open' } : null;
+  const link = parseLink(url, 'nookling');
+  if (!link) return null;
+  const dish = clean(link.params.dish);
+  if (link.action === 'cooked' && dish) return { kind: 'cooked', dish };
+  const title = clean(link.params.title);
+  if (link.action === 'read' && title) return { kind: 'read', title, author: clean(link.params.author) };
+  return { kind: 'open' };
 }
 
 /** Calls `onLink` for the link Nookling was launched with, and for each one after. */
