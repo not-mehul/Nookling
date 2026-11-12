@@ -118,6 +118,15 @@ const en = {
 
   'time.days': { one: '{count} day', other: '{count} days' },
 
+  'remind.channel': 'Your nookling',
+  'remind.channelHint': 'Reminders when a need runs low.',
+  'remind.hungry': '{name} is getting hungry.',
+  'remind.tired': '{name} is getting sleepy.',
+  'remind.bored': '{name} would like some company.',
+  'remind.grubby': '{name} could do with a wash.',
+  'remind.unwell': '{name} isn’t feeling well.',
+  'remind.several': '{name} would like you to look in.',
+
   'egg.found': 'Easter egg found: {found} of {total}.',
 
   'settings.appearance': 'Appearance',
@@ -140,6 +149,16 @@ const en = {
   'settings.soundHint': 'Soft sounds when it reacts.',
   'settings.haptics': 'Haptics',
   'settings.hapticsHint': 'A small buzz on boops, chomps and cuddles.',
+  'settings.reminders': 'Reminders',
+  'settings.remindersHint': 'When a need runs low. Never while it sleeps, and at most three a day.',
+  'settings.remindersOff': 'Notifications are off for Nookling.',
+  'settings.remindersOffDetail': 'Turn them on in the phone’s settings to get reminders.',
+  'settings.away': 'Away mode',
+  'settings.awayHint': 'Leave {name} with a sitter while you’re away. Nothing falls until you bring it home.',
+  'settings.awayDays': 'How long',
+  'settings.awayStart': 'Leave with the sitter',
+  'settings.awayUntil': 'With the sitter until {date}.',
+  'settings.awayLeft': '{name} is with the sitter. See you soon.',
   'settings.about': 'About',
   'settings.version': 'Version {version}',
   'settings.private': 'Private.',

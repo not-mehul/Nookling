@@ -2,12 +2,26 @@
   import { Switch } from 'dusk-dawn';
   import type { ThemeSetting } from '../domain/settings';
   import { t, type MessageKey } from '../i18n/index.svelte';
+  import { isNative } from '../platform/output';
   import { petState } from '../state/pet.svelte';
+  import { reminders } from '../state/reminders.svelte';
   import { settings } from '../state/settings.svelte';
   import { ui } from '../state/ui.svelte';
 
   const pet = $derived(petState.pet);
   let newName = $derived(petState.pet?.name ?? '');
+
+  let awayDays = $state(3);
+
+  async function setReminders(on: boolean) {
+    settings.update({ reminders: on });
+    if (on) await reminders.check(true);
+  }
+
+  async function leave() {
+    await petState.goAway(awayDays);
+    ui.notify(t('settings.awayLeft', { name: pet?.name ?? '' }), 'info');
+  }
 
   async function rename(e: SubmitEvent) {
     e.preventDefault();
@@ -68,10 +82,39 @@
       </label>
     </div>
     <p class="t-hint">{t('settings.dayHint')}</p>
+    {#if isNative && settings.current.reminders && reminders.permission === 'denied'}
+      <div class="notice" role="status">
+        <div class="notice-text">
+          <p class="notice-title">{t('settings.remindersOff')}</p>
+          <p class="notice-detail">{t('settings.remindersOffDetail')}</p>
+        </div>
+      </div>
+    {/if}
     <div class="switches">
+      <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.reminders')} hint={t('settings.remindersHint')} onchange={(on) => void setReminders(on)} />
       <Switch id="switchGentle" checked={settings.current.gentle} label={t('settings.gentle')} hint={t('settings.gentleHint')} onchange={(on) => settings.update({ gentle: on })} />
     </div>
   </div>
+  {#if pet && pet.stage !== 'seedpod'}
+    <div class="panel">
+      <div class="section-head"><h2>{t('settings.away')}</h2></div>
+      {#if pet.awayUntil}
+        <p class="t-hint">{t('settings.awayUntil', { date: new Date(pet.awayUntil).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) })}</p>
+        <button type="button" class="btn btn-secondary" id="btnComeBack" onclick={() => petState.comeBack()}>{t('care.comeBack', { name: pet.name })}</button>
+      {:else}
+        <p class="t-hint">{t('settings.awayHint', { name: pet.name })}</p>
+        <div class="rename">
+          <label class="field">
+            <span class="t-field-label">{t('settings.awayDays')}</span>
+            <select class="select" id="awayDays" bind:value={awayDays}>
+              {#each [1, 2, 3, 5, 7, 10, 14] as d (d)}<option value={d}>{t('time.days', { count: d })}</option>{/each}
+            </select>
+          </label>
+          <button type="button" class="btn btn-muted" id="btnAway" onclick={leave}>{t('settings.awayStart')}</button>
+        </div>
+      {/if}
+    </div>
+  {/if}
   <div class="panel">
     <div class="section-head"><h2>{t('settings.senses')}</h2></div>
     <div class="switches">

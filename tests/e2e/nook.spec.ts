@@ -61,3 +61,14 @@ test('gives food from the Pantry, drags food to the pet, and renames it', async 
   await page.locator('#btnRename').click();
   await expect(toast).toContainText('Hello, Pipkin.');
 });
+
+test('leaves the pet with a sitter and brings it home', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#tabSettings').click();
+  await page.locator('#awayDays').selectOption('2');
+  await page.locator('#btnAway').click();
+  await page.locator('#tabNook').click();
+  await expect(page.locator('#statusLine')).toHaveText('Pip is with the sitter, well looked after.');
+  await page.locator('#btnComeBackNook').click();
+  await expect(page.locator('#need-fullness')).toBeVisible();
+});

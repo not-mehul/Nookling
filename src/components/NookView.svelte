@@ -380,7 +380,9 @@
       {/if}
     </section>
 
-    {#if pet.stage !== 'seedpod'}
+    {#if pet.awayUntil}
+      <button type="button" class="btn btn-primary btn-block" id="btnComeBackNook" onclick={() => petState.comeBack()}>{t('care.comeBack', { name })}</button>
+    {:else if pet.stage !== 'seedpod'}
       <section class="panel needs" aria-label={t('needs.label')}>
         {#each NEEDS as need (need)}
           <NeedMeter id="need-{need}" label={t(`need.${need}` as MessageKey)} value={pet.needs[need]} words={Object.fromEntries(Object.entries(NEED_WORDS[need]).map(([k, v]) => [k, t(v as MessageKey)])) as Record<'full' | 'fine' | 'low' | 'empty', string>} />
