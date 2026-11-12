@@ -41,6 +41,7 @@ describe('the pet store', () => {
     await petState.init();
     await petState.adopt('Pip');
     while (!(await petState.warm()));
+    vi.setSystemTime(NOON + 60_000);
     const before = petState.pet!.needs.fullness;
     expect(await petState.feed(foodById('oat-cake')!)).toEqual({ ok: true });
     expect(petState.pet!.needs.fullness).toBeGreaterThan(before);

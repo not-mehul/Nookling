@@ -1,5 +1,7 @@
 // Navigation and transient UI state shared between components.
 
+import type { Food } from '../domain/foods';
+
 export type Tab = 'nook' | 'pantry' | 'journal' | 'settings';
 export type ToastKind = 'success' | 'error' | 'info' | 'celebrate';
 
@@ -25,6 +27,8 @@ const TOAST_EXIT_MS = 160;
 
 class UiState {
   tab = $state<Tab>('nook');
+  /** A food given from the Pantry, for the Nook to feed once it is showing. */
+  pendingFood = $state.raw<Food | null>(null);
   toast = $state.raw<Toast | null>(null);
   /** Overlays (dialogs, sheets) register here so the Android back button can close them. */
   private closers: (() => void)[] = [];
@@ -66,6 +70,11 @@ class UiState {
     clearTimeout(this.toastTimer);
     this.toast = null;
     toast.action.run();
+  }
+
+  give(food: Food): void {
+    this.pendingFood = food;
+    this.go('nook');
   }
 
   go(tab: Tab): void {

@@ -4,14 +4,16 @@
   import { onMount } from 'svelte';
   import Adopt from './Adopt.svelte';
   import FoodIcon from './FoodIcon.svelte';
-  import FoodSheet from './FoodSheet.svelte';
   import NeedMeter from './NeedMeter.svelte';
   import Icon from './ui/Icon.svelte';
-  import type { Food } from '../domain/foods';
+  import { FOODS, canHave, type Food } from '../domain/foods';
   import { NEEDS, type PetEvent, type Refusal } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { cheer } from '../lib/delight';
   import Pet from '../pet/Pet.svelte';
+  import { petGestures } from '../pet/gestures';
+  import { buzz } from '../platform/haptics';
+  import { chirp } from '../platform/sound';
   import { NEED_WORDS, glowFor, grubbiness, restingFace, status, summarise } from '../pet/behaviour';
   import type { Expression, Reaction } from '../pet/types';
   import { petState, type CareResult } from '../state/pet.svelte';
@@ -26,8 +28,15 @@
   let held = $state<Expression | null>(null);
   let chomp = $state(false);
   let look = $state({ x: 0, y: 0 });
-  let foodOpen = $state(false);
+  /** The food tray under the pet, open after Feed. */
+  let trayOpen = $state(false);
   let flying = $state<Food | null>(null);
+  /** A food being dragged to the pet, and where the finger is. */
+  let dragging = $state<{ food: Food; x: number; y: number } | null>(null);
+  let cuddling = $state(false);
+  let bubbles = $state<{ id: number; x: number; y: number }[]>([]);
+  /** Turned away after too much tickling, until then. */
+  let sulkUntil = 0;
   let welcome = $state('');
   let busy = $state(false);
 
@@ -78,26 +87,150 @@
       }
       return;
     }
+    if (Date.now() < sulkUntil) return;
     const result = await petState.stroke('boop');
     if (!result.ok) return;
+    buzz('light');
     if (pet.asleep) return move('shiver');
+    chirp('boop');
     move('squish');
     hold('happy', 900);
   }
 
+  async function tickle(taps: number) {
+    if (!pet || pet.stage === 'seedpod' || pet.asleep || Date.now() < sulkUntil) return tapPet();
+    if (taps > 12) {
+      // Enough. It turns away for a few seconds.
+      sulkUntil = Date.now() + 4000;
+      chirp('sad');
+      hold('grumpy', 4000);
+      look = { x: 1, y: 0.2 };
+      setTimeout(() => (look = { x: 0, y: 0 }), 4000);
+      return;
+    }
+    await petState.stroke('boop');
+    chirp('giggle');
+    buzz('tick');
+    hold('happy', 1100);
+    move('wiggle');
+  }
+
+  async function strokeIt() {
+    if (!pet || pet.stage === 'seedpod' || Date.now() < sulkUntil) return;
+    const result = await petState.stroke('stroke');
+    if (!result.ok) return;
+    if (!pet.asleep) {
+      hold('happy', 1600);
+      chirp('purr');
+    }
+    move('nuzzle');
+  }
+
+  async function cuddle(holding: boolean) {
+    if (!pet || pet.stage === 'seedpod') return;
+    cuddling = holding;
+    if (holding) {
+      buzz('medium');
+      clearTimeout(heldTimer);
+      held = pet.asleep ? null : 'happy';
+      if (!pet.asleep) chirp('happy');
+      return;
+    }
+    held = null;
+    await petState.stroke('cuddle');
+  }
+
+  async function scrub(x = 0, y = 0) {
+    if (!pet || pet.stage === 'seedpod') return;
+    addBubbles(x, y);
+    const result = await petState.clean();
+    if (!result.ok) return;
+    hold('happy');
+    move('wiggle');
+    chirp('happy');
+    ui.notify(t('done.cleaned', { name }), 'success');
+  }
+
+  let bubbleId = 0;
+  function addBubbles(x: number, y: number) {
+    const box = frame?.getBoundingClientRect();
+    if (!box) return;
+    const fresh = Array.from({ length: 6 }, () => ({
+      id: ++bubbleId,
+      x: (x ? x - box.left : box.width / 2) + (Math.random() * 60 - 30),
+      y: (y ? y - box.top : box.height / 2) + (Math.random() * 40 - 20),
+    }));
+    bubbles = [...bubbles, ...fresh];
+    setTimeout(() => (bubbles = bubbles.filter((b) => !fresh.includes(b))), 900);
+  }
+  let lastPointer = { x: 0, y: 0 };
+
+  /** Its eyes follow a finger anywhere in the room. */
+  function follow(e: PointerEvent) {
+    lastPointer = { x: e.clientX, y: e.clientY };
+    if (!pet || pet.asleep || pet.stage === 'seedpod' || held === 'grumpy') return;
+    const box = frame?.getBoundingClientRect();
+    if (!box) return;
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height * 0.45;
+    const dx = (e.clientX - cx) / (box.width / 2);
+    const dy = (e.clientY - cy) / (box.height / 2);
+    const len = Math.max(1, Math.hypot(dx, dy));
+    look = { x: dx / len, y: dy / len };
+  }
+
+  // ── Dragging food from the tray to its mouth.
+  function grab(e: PointerEvent, food: Food) {
+    if (e.button !== 0 || !canHave(food, pet?.stage ?? 'sprout')) return;
+    const start = { x: e.clientX, y: e.clientY };
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    let moved = false;
+    const onMove = (ev: PointerEvent) => {
+      if (!moved && Math.hypot(ev.clientX - start.x, ev.clientY - start.y) < 8) return;
+      moved = true;
+      dragging = { food, x: ev.clientX, y: ev.clientY };
+      // It opens its mouth as the food comes near.
+      const box = frame?.getBoundingClientRect();
+      if (box && !busy) {
+        const near = Math.hypot(ev.clientX - (box.left + box.width / 2), ev.clientY - (box.top + box.height / 2)) < box.width * 0.6;
+        held = near ? 'eating' : null;
+        chomp = false;
+      }
+    };
+    const onUp = (ev: PointerEvent) => {
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
+      dragging = null;
+      if (!moved) return; // a tap: the click handler feeds it
+      held = null;
+      const box = frame?.getBoundingClientRect();
+      if (box && ev.clientX > box.left && ev.clientX < box.right && ev.clientY > box.top && ev.clientY < box.bottom) void pick(food, true);
+    };
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+  }
+
   // ── Feeding: the food flies to its mouth, three chomps, then it counts.
-  async function pick(food: Food) {
-    foodOpen = false;
+  async function pick(food: Food, dropped = false) {
     if (!pet || busy) return;
+    if (pet.asleep) return refused('asleep');
+    if (pet.needs.fullness > 0.95) return refused('full');
     busy = true;
     try {
-      flying = food;
       held = 'eating';
       chomp = false;
-      await wait(520);
-      flying = null;
+      if (!dropped) {
+        flying = food;
+        await wait(520);
+        flying = null;
+      }
       for (let i = 0; i < 3; i++) {
         chomp = true;
+        chirp('chomp');
+        buzz('light');
         await wait(170);
         chomp = false;
         await wait(170);
@@ -107,6 +240,7 @@
       if (!result.ok) return refused(result.why);
       hold('happy');
       move('bounce');
+      chirp('happy');
       ui.notify(t('done.fed', { name, food: food.name.toLowerCase() }), 'success');
     } finally {
       held = held === 'eating' ? null : held;
@@ -135,6 +269,14 @@
     const list = new Intl.ListFormat('en', { type: 'conjunction' }).format(parts);
     return t('welcome.line', { name, list });
   }
+
+  // "Give" in the Pantry lands here.
+  $effect(() => {
+    const food = ui.pendingFood;
+    if (!food || !pet || pet.stage === 'seedpod') return;
+    ui.pendingFood = null;
+    setTimeout(() => void pick(food), 250);
+  });
 
   onMount(() => {
     const away = petState.takeAway();
@@ -171,9 +313,16 @@
   {:else if !pet}
     <Adopt />
   {:else}
-    <section class="panel room" class:is-night={pet.asleep} aria-label={t('tabs.nook')}>
+    <section class="panel room" class:is-night={pet.asleep} aria-label={t('tabs.nook')} onpointermove={follow} onpointerleave={() => (look = { x: 0, y: 0 })}>
       <div class="pet-frame" bind:this={frame}>
-        <button type="button" class="pet-button" id="petButton" aria-label={pet.stage === 'seedpod' ? t('pod.label') : statusLine} onclick={tapPet}>
+        <button
+          type="button"
+          class="pet-button"
+          class:is-cuddled={cuddling}
+          id="petButton"
+          aria-label={pet.stage === 'seedpod' ? t('pod.label') : statusLine}
+          use:petGestures={{ ontap: tapPet, ontickle: tickle, onstroke: strokeIt, oncuddle: cuddle, onscrub: () => scrub(lastPointer.x, lastPointer.y) }}
+        >
           <Pet
             bind:this={rig}
             stage={pet.stage}
@@ -190,12 +339,39 @@
         {#if flying}
           <div class="flying-food" aria-hidden="true"><FoodIcon food={flying} size={40} /></div>
         {/if}
+        {#each bubbles as b (b.id)}
+          <span class="bubble" style:left="{b.x}px" style:top="{b.y}px" aria-hidden="true"></span>
+        {/each}
         {#each [0, 1, 2].slice(0, pet.messes) as i (i)}
           <svg class="mess mess-{i}" viewBox="-12 -8 24 16" aria-hidden="true"><path d="M-10 6Q-10 -2 -4 -3Q-2 -8 3 -6Q9 -6 10 6Z" /></svg>
         {/each}
       </div>
       <p class="status-line" id="statusLine" aria-live="polite">{statusLine}</p>
       {#if welcome}<p class="t-hint welcome" id="welcomeLine">{welcome}</p>{/if}
+      {#if trayOpen && pet.stage !== 'seedpod'}
+        <div class="tray" id="foodTray">
+          <p class="t-hint">{t('tray.hint', { name })}</p>
+          <ul class="tray-list">
+            {#each FOODS as food (food.id)}
+              {@const ok = canHave(food, pet.stage)}
+              <li>
+                <button
+                  type="button"
+                  class="tray-food dd-pressable"
+                  data-food={food.id}
+                  disabled={!ok || busy}
+                  aria-label={ok ? t('tray.give', { food: food.name }) : `${food.name}. ${t('refuse.not-yet', { name })}`}
+                  onpointerdown={(e) => grab(e, food)}
+                  onclick={() => pick(food)}
+                >
+                  <FoodIcon {food} size={40} />
+                  <span class="tray-name">{food.name}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        </div>
+      {/if}
       {#if pet.stage === 'seedpod'}
         <div class="warmth">
           <WavyProgress value={pet.warmth} label={t('pod.warmth')} />
@@ -212,7 +388,7 @@
       </section>
 
       <div class="care">
-        <button type="button" class="btn btn-secondary" id="btnFeed" disabled={busy} onclick={() => (pet.asleep ? refused('asleep') : (foodOpen = true))}>
+        <button type="button" class="btn btn-secondary" id="btnFeed" disabled={busy} aria-expanded={trayOpen} aria-controls="foodTray" onclick={() => (pet.asleep ? refused('asleep') : (trayOpen = !trayOpen))}>
           <Icon name="feed" size={18} />{t('care.feed')}
         </button>
         <button type="button" class="btn btn-secondary" id="btnPlay" disabled={busy} onclick={() => care(() => petState.play('toss', 0.5), 'done.played', () => (hold('happy'), move('hop')))}>
@@ -234,8 +410,8 @@
   {/if}
 </div>
 
-{#if foodOpen && pet}
-  <FoodSheet title={t('care.chooseFood', { name })} stage={pet.stage} tooSmall={t('refuse.not-yet', { name })} onpick={pick} onclose={() => (foodOpen = false)} />
+{#if dragging}
+  <div class="drag-food" style:left="{dragging.x}px" style:top="{dragging.y}px" aria-hidden="true"><FoodIcon food={dragging.food} size={48} /></div>
 {/if}
 
 <style>
@@ -299,6 +475,79 @@
     left: 18%;
     bottom: 0;
   }
+  .pet-button.is-cuddled :global(.rig) {
+    animation: sway 1.4s ease-in-out infinite;
+  }
+  @keyframes sway {
+    0%,
+    100% {
+      transform: translateY(-10px) rotate(-4deg);
+    }
+    50% {
+      transform: translateY(-12px) rotate(4deg);
+    }
+  }
+  .bubble {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    border: 1.5px solid var(--pet-outline);
+    background: rgba(var(--cream-rgb), 0.15);
+    pointer-events: none;
+    animation: bubble 900ms ease-out forwards;
+  }
+  @keyframes bubble {
+    to {
+      translate: 0 -30px;
+      scale: 1.4;
+      opacity: 0;
+    }
+  }
+  .tray {
+    width: 100%;
+    display: grid;
+    gap: var(--space-2);
+    text-align: center;
+  }
+  .tray-list {
+    list-style: none;
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: var(--space-1) var(--space-1) var(--space-2);
+  }
+  .tray-food {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-1);
+    width: 76px;
+    min-height: 84px;
+    padding: var(--space-2) var(--space-1);
+    background: var(--panel-bg-faint);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--corner-lg);
+    color: var(--text-body);
+    font: inherit;
+    cursor: grab;
+    touch-action: none;
+  }
+  .tray-food:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .tray-name {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+  }
+  .drag-food {
+    position: fixed;
+    z-index: 50;
+    translate: -50% -60%;
+    pointer-events: none;
+  }
   .status-line {
     font-family: var(--font-serif);
     font-style: italic;
@@ -340,6 +589,10 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
+    .pet-button.is-cuddled :global(.rig),
+    .bubble {
+      animation: none;
+    }
     .flying-food {
       animation: none;
       opacity: 0;

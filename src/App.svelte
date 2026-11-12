@@ -6,7 +6,10 @@
   import PantryView from './components/PantryView.svelte';
   import SettingsView from './components/SettingsView.svelte';
   import { t, type MessageKey } from './i18n/index.svelte';
+  import { setHaptics } from './platform/haptics';
+  import { setSound } from './platform/sound';
   import { applyTheme, shown, toggledTheme } from './platform/theme.svelte';
+  import { petState } from './state/pet.svelte';
   import { settings } from './state/settings.svelte';
   import { ui, type Tab } from './state/ui.svelte';
 
@@ -19,6 +22,15 @@
   const ICONS = { nook: nookIcon, pantry: pantryIcon, journal: journalIcon, settings: settingsIcon };
 
   $effect(() => applyTheme(settings.current.theme));
+  $effect(() => setSound(settings.current.sound));
+  $effect(() => setHaptics(settings.current.haptics));
+  // A new bedtime or Gentle mode: bring the pet up to now so the change shows at once.
+  let rules = $state('');
+  $effect(() => {
+    const next = `${settings.current.bedtime}|${settings.current.wake}|${settings.current.gentle}`;
+    if (rules && rules !== next) void petState.refresh();
+    rules = next;
+  });
 </script>
 
 {#snippet nookIcon()}<Icon name="nook" size={22} stroke={1.5} />{/snippet}
