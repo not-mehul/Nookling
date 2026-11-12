@@ -1,5 +1,6 @@
 <script lang="ts">
   // The Journal: who it is, the moments it grew, its pictures and the care log.
+  import { GAMES, type Game } from '../domain/games';
   import { foodById } from '../domain/foods';
   import { DAY } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
@@ -59,7 +60,7 @@
     const key = `log.${e.kind}` as MessageKey;
     if (e.kind === 'grew') return t('log.grew', { stage: t(`stage.${e.detail ?? 'nookling'}` as MessageKey) });
     if (e.kind === 'fed') return t('log.fed', { detail: (foodById(e.detail ?? '')?.name ?? e.detail ?? '').toLowerCase() });
-    if (e.kind === 'played') return t('log.played', { detail: e.detail === 'catch' || e.detail === 'seek' || e.detail === 'echo' ? t(`game.${e.detail}`).toLowerCase() : '' });
+    if (e.kind === 'played') return t('log.played', { detail: e.detail && (GAMES as readonly string[]).includes(e.detail) ? t(`game.${e.detail as Game}`).toLowerCase() : '' });
     return t(key, { detail: e.detail ?? '' });
   }
 

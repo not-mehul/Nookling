@@ -2,7 +2,7 @@
 // sound is original to the app and nothing is fetched or bundled. Quiet by
 // design (a tenth of full volume) and off when Settings says so.
 
-export type Chirp = 'boop' | 'happy' | 'giggle' | 'chomp' | 'yawn' | 'sad' | 'hatch' | 'purr';
+export type Chirp = 'boop' | 'happy' | 'giggle' | 'chomp' | 'yawn' | 'sad' | 'hatch' | 'purr' | 'pop' | 'splash';
 
 let context: AudioContext | null = null;
 let enabled = true;
@@ -63,11 +63,29 @@ export function chirp(kind: Chirp): void {
       case 'purr':
         for (let i = 0; i < 5; i++) tone(ctx, 140, 120, 70, i * 0.08, 'triangle', 0.05);
         return;
+      case 'pop':
+        return tone(ctx, 1400, 2000, 45, 0, 'sine', 0.06);
+      case 'splash':
+        for (let i = 0; i < 3; i++) tone(ctx, 300 - i * 40, 180, 80, i * 0.05, 'triangle', 0.05);
+        return;
       case 'hatch':
         [523, 659, 784, 1047].forEach((f, i) => tone(ctx, f, f * 1.02, 140, i * 0.1));
         return;
     }
   } catch {
     // Audio is a nicety; never let it break a touch.
+  }
+}
+
+/** A soft note on a pentatonic scale: for the rhythm game and the bedtime lullaby. */
+export function note(step: number, ms = 220): void {
+  const ctx = audio();
+  if (!ctx) return;
+  const scale = [523, 587, 659, 784, 880, 1047, 1175];
+  const f = scale[((step % scale.length) + scale.length) % scale.length]!;
+  try {
+    tone(ctx, f, f, ms, 0, 'sine', 0.08);
+  } catch {
+    // A nicety.
   }
 }

@@ -165,3 +165,51 @@ test('cozy: back after a while, it is caught in a moment and has a find to open'
   await page.locator('[data-style-option="tamagotchi"]').click();
   await expect(page.locator('#switchGentle')).toBeAttached();
 });
+
+test('the arcade: nine games, a game of the day, and a quick pebble stack', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#btnPlay').click();
+  await expect(page.locator('[data-game]')).toHaveCount(9);
+  await expect(page.locator('#dailyBadge')).toHaveText('Game of the day');
+  await page.locator('[data-game="stack"]').click();
+  const field = page.locator('#stackField');
+  await field.focus();
+  // Drop at once: the first pebble starts at the far left and misses, which ends it.
+  for (let i = 0; i < 20 && (await field.isVisible()); i++) await page.keyboard.press('Enter');
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip had a lovely time.', { timeout: 10_000 });
+});
+
+test('teaches a trick, chats, and fidgets', async ({ page }) => {
+  await hatch(page);
+  const toast = page.locator('.toast-region[role="status"]');
+
+  await page.locator('#btnTricks').click();
+  await page.locator('[data-trick="bounce"]').click();
+  const pad = page.locator('#trickPad');
+  await pad.focus();
+  for (let lesson = 0; lesson < 3; lesson++) {
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    await expect(page.locator('#trickLine')).not.toHaveText('');
+    await page.waitForTimeout(150);
+  }
+  await expect(toast).toContainText('Pip learned Bounce!');
+  await page.keyboard.press('Escape');
+
+  await page.locator('#btnChat').click();
+  await expect(page.locator('#chatBubble')).toBeVisible();
+  await page.locator('[data-reply="1"]').click();
+  await expect(page.locator('#chatBubble')).toHaveCount(0);
+  await expect(page.locator('#statusLine')).not.toHaveText('');
+
+  await page.locator('#btnFidget').click();
+  const blob = page.locator('#fidgetField');
+  await expect(blob).toBeVisible();
+  await page.waitForTimeout(500); // the sheet rising
+  const box = (await blob.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByText('1 boing', { exact: true })).toBeVisible();
+});

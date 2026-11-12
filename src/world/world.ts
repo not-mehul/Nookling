@@ -6,6 +6,7 @@
 import { DAY, HOUR, isNight, type Pet, type Schedule } from '../domain/pet';
 import { seeded } from './random';
 import { pickTreasure } from './treasures';
+import { newArcade, type Arcade } from './arcade';
 
 export interface Find {
   id: string;
@@ -25,6 +26,12 @@ export interface World {
   moments: Record<string, number>;
   /** When the app was last in front of you, for "back after a while". */
   lastSeen: number;
+  /** Best scores and the game of the day. */
+  arcade: Arcade;
+  /** Tricks and how many lessons each has had (learned at LEARN_AFTER). */
+  tricks: Record<string, number>;
+  /** Chat: the reply you gave to each question, by index. */
+  chat: Record<string, number>;
 }
 
 /** It wanders off for a find every few hours you're away (not at night). */
@@ -35,7 +42,7 @@ export const MAX_WAITING = 3;
 export const MOMENT_AFTER = 20 * 60_000;
 
 export function newWorld(now: number): World {
-  return { id: 'world', lastForage: now, waiting: [], treasures: {}, moments: {}, lastSeen: now };
+  return { id: 'world', lastForage: now, waiting: [], treasures: {}, moments: {}, lastSeen: now, arcade: newArcade(), tricks: {}, chat: {} };
 }
 
 /** World data read back from storage or a backup, with anything missing filled in. */
@@ -54,6 +61,9 @@ export function normaliseWorld(raw: unknown, now = Date.now()): World {
     waiting: Array.isArray(r.waiting) ? r.waiting.filter((f) => f && typeof f.id === 'string' && typeof f.treasureId === 'string').slice(0, MAX_WAITING) : [],
     treasures: record(r.treasures),
     moments: record(r.moments),
+    arcade: { ...newArcade(), ...record<never>(r.arcade), best: record(r.arcade?.best), played: record(r.arcade?.played) },
+    tricks: record(r.tricks),
+    chat: record(r.chat),
   };
 }
 

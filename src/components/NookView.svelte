@@ -6,6 +6,11 @@
   import FoodIcon from './FoodIcon.svelte';
   import NeedMeter from './NeedMeter.svelte';
   import PlaySheet from './PlaySheet.svelte';
+  import ChatBubble from './ChatBubble.svelte';
+  import FidgetSheet from './FidgetSheet.svelte';
+  import TricksSheet from './TricksSheet.svelte';
+  import { nextQuestion, recollection, type Question } from '../world/chat';
+  import { known } from '../world/tricks';
   import type { Game } from '../domain/games';
   import Icon from './ui/Icon.svelte';
   import { FOODS, canHave, type Food } from '../domain/foods';
@@ -45,6 +50,13 @@
   let dragging = $state<{ food: Food; x: number; y: number } | null>(null);
   let cuddling = $state(false);
   let playOpen = $state(false);
+  let fidgetOpen = $state(false);
+  let tricksOpen = $state(false);
+  /** Its question in a picture bubble, until you reply. */
+  let asking = $state.raw<Question | null>(null);
+  /** Something it says, over the status line for a few seconds. */
+  let saying = $state('');
+  let sayTimer: ReturnType<typeof setTimeout> | undefined;
   let bubbles = $state<{ id: number; x: number; y: number }[]>([]);
   /** Turned away after too much tickling, until then. */
   let sulkUntil = 0;
@@ -66,7 +78,7 @@
     if (pet && isBirthday(pet, clock)) out.push('cake');
     return out;
   });
-  const statusLine = $derived(pet ? (moment ? t(`moment.${moment.id}` as MessageKey, { name }) : t(`status.${status(pet)}` as MessageKey, { name })) : '');
+  const statusLine = $derived(pet ? (saying ? saying : moment ? t(`moment.${moment.id}` as MessageKey, { name }) : t(`status.${status(pet)}` as MessageKey, { name })) : '');
 
   // A moment lasts until it notices you: a tap, or a few seconds.
   $effect(() => {
@@ -105,6 +117,57 @@
 
   function move(kind: Reaction) {
     void rig?.react(kind);
+  }
+
+  function say(line: string, ms = 4500) {
+    clearTimeout(sayTimer);
+    saying = line;
+    sayTimer = setTimeout(() => (saying = ''), ms);
+  }
+
+  // ── Chat: it asks; you answer; it remembers.
+  function chat() {
+    if (!pet) return;
+    if (pet.asleep) return refused('asleep');
+    if (asking) return (asking = null);
+    const q = nextQuestion(worldState.world.chat);
+    if (q) {
+      asking = q;
+      hold('surprised', 600);
+      chirp('boop');
+      return;
+    }
+    // It has asked everything: it brings something up instead.
+    const told = recollection(worldState.world.chat);
+    if (told) say(t(`chat.${told[0]}.${told[1]}.recall` as MessageKey, { name }));
+    hold('happy', 1200);
+    chirp('happy');
+  }
+  async function reply(r: number) {
+    const q = asking;
+    if (!q) return;
+    asking = null;
+    await worldState.answer(q.id, r);
+    say(t(`chat.${q.id}.${r}.said` as MessageKey, { name }));
+    hold('happy', 1400);
+    move('hop');
+    chirp('happy');
+  }
+
+  // ── Give the phone a shake and it wobbles, dizzy.
+  let lastShake = 0;
+  function shaken(e: DeviceMotionEvent) {
+    const a = e.accelerationIncludingGravity ?? e.acceleration;
+    if (!a || !pet || pet.stage === 'seedpod' || pet.awayUntil) return;
+    const force = Math.hypot(a.x ?? 0, a.y ?? 0, a.z ?? 0);
+    const now = Date.now();
+    if (force < 24 || now - lastShake < 1500) return;
+    lastShake = now;
+    if (pet.asleep) return move('shiver');
+    move('wobble');
+    hold('dizzy', 1600);
+    chirp('giggle');
+    buzz('medium');
   }
 
   function refused(why: Refusal) {
@@ -306,7 +369,19 @@
 
   function idle(kind: ReturnType<typeof idleBeat>) {
     // Now and then, instead, it gets up to something.
-    if (Math.random() < 0.12) return worldState.catchMoment();
+    const roll = Math.random();
+    if (roll < 0.12) return worldState.catchMoment();
+    const tricks = known(worldState.world.tricks);
+    if (roll < 0.22 && tricks.length) {
+      const trick = tricks[Math.floor(Math.random() * tricks.length)]!;
+      hold('happy', 1200);
+      say(t('tricks.showsOff', { name, trick: t(`trick.${trick.id}` as MessageKey).toLowerCase() }), 3000);
+      return move(trick.move);
+    }
+    if (roll < 0.28) {
+      const told = recollection(worldState.world.chat);
+      if (told) return say(t(`chat.${told[0]}.${told[1]}.recall` as MessageKey, { name }));
+    }
     switch (kind) {
       case 'look':
         look = { x: Math.random() * 2 - 1, y: Math.random() * 1.2 - 0.6 };
@@ -349,13 +424,15 @@
 
   async function played(game: Game, score: number) {
     playOpen = false;
-    const result = await petState.play(game, score);
+    const record = await worldState.played(game, score);
+    const result = await petState.play(game, record.score);
     if (!result.ok) return refused(result.why);
     hold('happy');
     move('hop');
     chirp('happy');
     const verdict = t(score >= 0.8 ? 'game.result.great' : score >= 0.4 ? 'game.result.good' : 'game.result.ok');
-    ui.notify(t('game.done', { name, result: verdict }), 'success');
+    const extra = record.daily ? ` ${t('game.dailyThanks')}` : record.best ? ` ${t('game.newBest')}` : '';
+    ui.notify(t('game.done', { name, result: verdict }) + extra, record.daily || record.best ? 'celebrate' : 'success');
   }
 
   function wait(ms: number) {
@@ -452,7 +529,10 @@
     };
     beat();
     const minute = setInterval(() => (clock = Date.now()), 60_000);
+    window.addEventListener('devicemotion', shaken);
     return () => {
+      window.removeEventListener('devicemotion', shaken);
+      clearTimeout(sayTimer);
       clearInterval(minute);
       stop();
       clearTimeout(timer);
@@ -523,6 +603,7 @@
           </span>
         </button>
       {/if}
+      {#if asking}<ChatBubble question={asking} {name} onreply={reply} />{/if}
       {#if welcome}<p class="t-hint welcome" id="welcomeLine">{welcome}</p>{/if}
       {#if trayOpen && pet.stage !== 'seedpod'}
         <div class="tray" id="foodTray">
@@ -584,12 +665,25 @@
           </button>
         {/if}
       </div>
+      <div class="fun" aria-label={t('fun.label', { name })} role="group">
+        <button type="button" class="btn btn-muted" id="btnChat" aria-expanded={!!asking} onclick={chat}><Icon name="chat" size={16} />{t('fun.chat')}</button>
+        <button type="button" class="btn btn-muted" id="btnTricks" onclick={() => (pet.asleep ? refused('asleep') : (tricksOpen = true))}><Icon name="wand" size={16} />{t('fun.tricks')}</button>
+        <button type="button" class="btn btn-muted" id="btnFidget" onclick={() => (pet.asleep ? refused('asleep') : (fidgetOpen = true))}><Icon name="hand" size={16} />{t('fun.fidget')}</button>
+      </div>
     {/if}
   {/if}
 </div>
 
 {#if playOpen && pet}
   <PlaySheet {name} stage={pet.stage} form={pet.form} onresult={played} onclose={() => (playOpen = false)} />
+{/if}
+
+{#if fidgetOpen && pet}
+  <FidgetSheet {name} stage={pet.stage} form={pet.form} onclose={() => (fidgetOpen = false)} />
+{/if}
+
+{#if tricksOpen && pet}
+  <TricksSheet {name} stage={pet.stage} form={pet.form} onclose={() => (tricksOpen = false)} />
 {/if}
 
 {#if dragging}
@@ -834,6 +928,18 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
     margin-bottom: var(--space-5);
+  }
+  .fun {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: calc(-1 * var(--space-3)) 0 var(--space-5);
+  }
+  .fun .btn {
+    width: 100%;
+    justify-content: center;
+    gap: var(--space-1);
+    font-size: 0.875rem;
   }
   .care .btn {
     width: 100%;

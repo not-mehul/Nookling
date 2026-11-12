@@ -3,6 +3,9 @@
 // is out of sight: while you're here, it stays with you.
 
 import { db } from '../data/db';
+import type { Game } from '../domain/games';
+import { recordGame, type Played } from '../world/arcade';
+import { LEARN_AFTER, teach, type Trick } from '../world/tricks';
 import { pickMoment, type Moment } from '../world/moments';
 import { forage, newWorld, normaliseWorld, receive, stayed, MOMENT_AFTER, type Find, type World } from '../world/world';
 import { petState, schedule } from './pet.svelte';
@@ -74,6 +77,26 @@ class WorldState {
     if (!find) return null;
     await this.save(world);
     return { find, isNew };
+  }
+
+  /** A game finished: best scores, and the game of the day's extra. */
+  async played(game: Game, score: number, now = Date.now()): Promise<Played> {
+    const result = recordGame(this.world.arcade, game, score, now);
+    await this.save({ ...this.world, arcade: result.arcade });
+    return result;
+  }
+
+  /** One lesson on a trick. True when that lesson was the one it learned it on. */
+  async lesson(id: Trick['id']): Promise<boolean> {
+    const before = this.world.tricks[id] ?? 0;
+    const tricks = teach(this.world.tricks, id);
+    await this.save({ ...this.world, tricks });
+    return (tricks[id] ?? 0) > before && tricks[id] === LEARN_AFTER;
+  }
+
+  /** Remembers your reply to one of its questions. */
+  async answer(question: string, reply: number): Promise<void> {
+    await this.save({ ...this.world, chat: { ...this.world.chat, [question]: reply } });
   }
 
   async update(change: (w: World) => World): Promise<void> {
