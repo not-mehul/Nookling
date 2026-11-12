@@ -69,4 +69,3 @@ Not an egg, but a milestone: its first whole day with every need at half or more
 
 - A home-screen widget, shake-to-wobble and a seven-day chart of its needs.
 - Cross-app links, once the first release is out: the other six apps gain `nookling` in their `links.ts`.
-- Switch the dusk-dawn pin from a commit to the `v2.2.0` tag once that tag exists.
