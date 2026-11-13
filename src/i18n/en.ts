@@ -120,6 +120,11 @@ const en = {
 
 
   'time.days': { one: '{count} day', other: '{count} days' },
+  'time.hour': 'Hour',
+  'time.minute': 'Minute',
+  'time.choose': 'Choose',
+  'time.empty': 'Choose a time',
+  'time.plusMinutes': { one: 'Plus {count} minute', other: 'Plus {count} minutes' },
 
   'remind.channel': 'Your nookling',
   'remind.channelHint': 'Invitations when it finds something, or reminders in Tamagotchi mode.',

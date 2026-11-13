@@ -3,6 +3,7 @@
 // ============================================================
 
 import { App as CapacitorApp } from '@capacitor/app';
+import { dismissOverlay } from 'dusk-dawn';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { backUpQuietlyIfDue } from './state/backup';
@@ -30,6 +31,7 @@ function start(): void {
   if (isNative) {
     // Android back: close the topmost overlay, then return to the Nook, then exit (style.md §14).
     void CapacitorApp.addListener('backButton', () => {
+      if (dismissOverlay()) return;
       if (!ui.back()) void CapacitorApp.exitApp();
     });
     // Coming back to the app: replay the time it was away, quietly, for the welcome-back line.
