@@ -64,17 +64,21 @@
     gap: var(--space-4);
   }
   .food {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-4);
     align-items: center;
   }
   .food.is-locked :global(.food) {
     opacity: 0.45;
   }
+  /* With large text the Give button moves under the words instead of squeezing them. */
   .food-text {
+    flex: 1 1 10rem;
+    min-width: 0;
     display: grid;
     gap: 2px;
+    overflow-wrap: anywhere;
   }
   .chip-row {
     margin-top: var(--space-1);
