@@ -9,6 +9,15 @@ describe('nookling:// links', () => {
     expect(readNooklingLink('mise://open?id=1')).toBeNull();
   });
 
+  it('reads a dish from Mise and a book from BookShelf, and opens for anything empty', () => {
+    expect(readNooklingLink('nookling://cooked?dish=Lentil%20soup&source=mise')).toEqual({ kind: 'cooked', dish: 'Lentil soup' });
+    expect(readNooklingLink('nookling://read?title=The%20Hobbit&author=Tolkien&source=bookshelf')).toEqual({ kind: 'read', title: 'The Hobbit', author: 'Tolkien' });
+    expect(readNooklingLink('nookling://cooked?dish=%20%20')).toEqual({ kind: 'open' });
+    expect(readNooklingLink('nookling://read')).toEqual({ kind: 'open' });
+    const long = readNooklingLink(`nookling://cooked?dish=${'a'.repeat(500)}`);
+    expect(long?.kind === 'cooked' && long.dish.length).toBe(120);
+  });
+
   it('builds links the other apps can read', () => {
     const link = buildLink('nookling', 'open', {}, 'mise');
     expect(link).toBe('nookling://open?source=mise');

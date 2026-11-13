@@ -1,6 +1,8 @@
 <script lang="ts">
   // The Journal: who it is, the moments it grew, its pictures and the care log.
-  import { foodById } from '../domain/foods';
+  import { logLine } from '../lib/logLine';
+  import VisitorArt from '../world/art/VisitorArt.svelte';
+  import { VISITORS } from '../world/visitors';
   import { DAY } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { datedName, shareFile } from '../platform/output';
@@ -8,6 +10,10 @@
   import { ui } from '../state/ui.svelte';
   import type { LogEntry, Photo } from '../data/db';
   import Sheet from './ui/Sheet.svelte';
+  import { worldState } from '../state/world.svelte';
+  import TreasureIcon from '../world/art/TreasureIcon.svelte';
+  import { MOMENTS } from '../world/moments';
+  import { TREASURES, type Treasure } from '../world/treasures';
 
   const pet = $derived(petState.pet);
   const name = $derived(pet?.name ?? '');
@@ -23,6 +29,10 @@
   });
 
   let open = $state<Photo | null>(null);
+  let looking = $state<Treasure | null>(null);
+  const found = $derived(worldState.world.treasures);
+  const foundCount = $derived(TREASURES.filter((tr) => found[tr.id]).length);
+  const caught = $derived(MOMENTS.filter((m) => worldState.world.moments[m.id]).sort((a, b) => worldState.world.moments[b.id]! - worldState.world.moments[a.id]!));
 
   function startOfDay(at: number): number {
     const d = new Date(at);
@@ -47,13 +57,7 @@
     return new Date(day).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
-  function line(e: LogEntry): string {
-    const key = `log.${e.kind}` as MessageKey;
-    if (e.kind === 'grew') return t('log.grew', { stage: t(`stage.${e.detail ?? 'nookling'}` as MessageKey) });
-    if (e.kind === 'fed') return t('log.fed', { detail: (foodById(e.detail ?? '')?.name ?? e.detail ?? '').toLowerCase() });
-    if (e.kind === 'played') return t('log.played', { detail: e.detail === 'catch' || e.detail === 'seek' || e.detail === 'echo' ? t(`game.${e.detail}`).toLowerCase() : '' });
-    return t(key, { detail: e.detail ?? '' });
-  }
+  const line = (e: LogEntry) => logLine(e, worldState.world);
 
   async function share(p: Photo) {
     await shareFile({ name: datedName(`${name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'nookling'}`, 'png', new Date(p.at), true), data: new Uint8Array(await p.image.arrayBuffer()), mime: 'image/png' }, name);
@@ -107,6 +111,66 @@
       {/if}
     </div>
 
+    <div class="panel" id="journalTreasures">
+      <div class="section-head"><h3>{t('journal.treasures')}</h3><span class="t-data">{foundCount} / {TREASURES.length}</span></div>
+      {#if foundCount}
+        <ul class="treasures">
+          {#each TREASURES as tr (tr.id)}
+            <li>
+              {#if found[tr.id]}
+                <button type="button" class="treasure-slot dd-pressable" data-treasure={tr.id} aria-label={tr.name} onclick={() => (looking = tr)}>
+                  <TreasureIcon treasure={tr} size={36} />
+                  {#if (found[tr.id]?.count ?? 0) > 1}<span class="t-data times">×{found[tr.id]?.count}</span>{/if}
+                </button>
+              {:else}
+                <span class="treasure-slot is-empty" aria-hidden="true"><TreasureIcon treasure={tr} size={36} hidden /></span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+        <p class="t-hint">{t('journal.treasuresHint')}</p>
+      {:else}
+        <p class="t-hint">{t('journal.noTreasures', { name })}</p>
+      {/if}
+    </div>
+
+    <div class="panel" id="journalMoments">
+      <div class="section-head"><h3>{t('journal.moments')}</h3><span class="t-data">{caught.length} / {MOMENTS.length}</span></div>
+      {#if caught.length}
+        <ul class="moments">
+          {#each caught as m (m.id)}
+            <li><span class="t-data">{dateFmt(worldState.world.moments[m.id]!)}</span> {t(`moment.${m.id}` as MessageKey, { name })}</li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="t-hint">{t('journal.noMoments', { name })}</p>
+      {/if}
+    </div>
+
+    <div class="panel" id="journalVisitors">
+      <div class="section-head"><h3>{t('journal.visitors')}</h3><span class="t-data">{VISITORS.filter((v) => worldState.world.visitors[v.id]).length} / {VISITORS.length}</span></div>
+      {#if Object.keys(worldState.world.visitors).length}
+        <ul class="visitors">
+          {#each VISITORS.filter((v) => worldState.world.visitors[v.id]) as v (v.id)}
+            <li><VisitorArt id={v.id} size={40} /><span><b>{t(`visitor.${v.id}` as MessageKey)}</b><br /><span class="t-hint">{t('journal.visitorMet', { count: worldState.world.visitors[v.id]!.met })}</span></span></li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="t-hint">{t('journal.visitorsEmpty')}</p>
+      {/if}
+    </div>
+
+    {#if worldState.world.books.length}
+      <div class="panel" id="journalBooks">
+        <div class="section-head"><h3>{t('journal.books', { name })}</h3></div>
+        <ul class="moments">
+          {#each worldState.world.books as b (b.title)}
+            <li><span class="t-data">{dateFmt(b.at)}</span> <i>{b.title}</i>{#if b.author}, {b.author}{/if}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
     <div class="panel" id="journalAlbum">
       <div class="section-head"><h3>{t('journal.album')}</h3></div>
       {#if petState.photos.length}
@@ -143,6 +207,17 @@
     <p class="t-hint">{t('journal.noLog')}</p>
   {/if}
 </div>
+
+{#if looking}
+  {@const tr = looking}
+  <Sheet title={tr.name} onclose={() => (looking = null)}>
+    <div class="treasure-detail">
+      <TreasureIcon treasure={tr} size={96} />
+      <p class="treasure-note">{tr.note}</p>
+      <p class="t-hint">{t(`journal.rarity.${tr.rarity}` as MessageKey)}{tr.season ? ` · ${t(`journal.season.${tr.season}` as MessageKey)}` : ''} · {t('journal.firstFound', { date: dateFmt(found[tr.id]?.first ?? Date.now()) })}</p>
+    </div>
+  </Sheet>
+{/if}
 
 {#if open}
   {@const p = open}
@@ -185,6 +260,73 @@
   }
   .day:first-of-type {
     margin-top: 0;
+  }
+  .visitors {
+    list-style: none;
+    display: grid;
+    gap: var(--space-2);
+  }
+  .visitors li {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .treasures {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .treasure-slot {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 1;
+    padding: 0;
+    background: var(--panel-bg-faint);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--corner-md);
+    cursor: pointer;
+  }
+  .treasure-slot.is-empty {
+    cursor: default;
+    border-style: dashed;
+  }
+  .times {
+    position: absolute;
+    right: 3px;
+    bottom: 1px;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
+  .moments {
+    list-style: none;
+    display: grid;
+    gap: var(--space-2);
+  }
+  .moments li {
+    display: flex;
+    gap: var(--space-3);
+    color: var(--text-body);
+  }
+  .treasure-detail {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-3);
+    text-align: center;
+  }
+  .treasure-note {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.125rem;
+    color: var(--text-heading);
   }
   .album {
     list-style: none;

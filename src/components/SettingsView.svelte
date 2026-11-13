@@ -7,6 +7,8 @@
   import { datedName, isNative, saveFile } from '../platform/output';
   import Sheet from './ui/Sheet.svelte';
   import { petState } from '../state/pet.svelte';
+  import { worldState } from '../state/world.svelte';
+  import { newWorld } from '../world/world';
   import { reminders } from '../state/reminders.svelte';
   import { settings } from '../state/settings.svelte';
   import { ui } from '../state/ui.svelte';
@@ -44,7 +46,7 @@
     saving = true;
     try {
       const now = new Date();
-      const bytes = await buildBackupZip(all.pet, all.log, settings.current, all.photos, now);
+      const bytes = await buildBackupZip(all.pet, all.log, settings.current, all.photos, now, worldState.world);
       const { savedTo } = await saveFile({ name: datedName(BACKUP_PREFIX, 'zip', now, true), data: bytes, mime: 'application/zip' });
       settings.update({ lastBackupAt: now.toISOString() });
       ui.notify(t('settings.backedUp', { where: savedTo ?? t('settings.backup') }), 'success');
@@ -73,6 +75,7 @@
     pending = null;
     if (!data) return;
     await petState.restore(data);
+    await worldState.save(data.world ?? newWorld(Date.now()));
     if (data.settings) settings.update({ ...data.settings, lastBackupAt: settings.current.lastBackupAt });
     ui.notify(t('settings.restored', { name: data.pet.name }), 'success');
   }
@@ -82,6 +85,7 @@
     { value: 'dark', key: 'settings.themeDusk' },
     { value: 'light', key: 'settings.themeDawn' },
   ];
+  import { COATS, coatOf, pickCoat } from '../pet/coats';
 </script>
 
 <div id="viewSettings" role="tabpanel" aria-labelledby="tabSettings">
@@ -114,10 +118,38 @@
         </label>
         <button type="submit" class="btn btn-muted" id="btnRename" disabled={!newName.trim() || newName.trim() === pet.name}>{t('settings.rename')}</button>
       </form>
+      <span class="t-field-label coat-label" id="coatLabel">{t('settings.coat')}</span>
+      <div class="coats" role="radiogroup" aria-labelledby="coatLabel">
+        {#each COATS as c (c.id)}
+          <button
+            type="button"
+            role="radio"
+            class="coat dd-pressable"
+            data-coat={c.id}
+            aria-checked={coatOf(pet) === c.id}
+            aria-label={t(`coat.${c.id}` as MessageKey)}
+            title={t(`coat.${c.id}` as MessageKey)}
+            style:--swatch={c.colour}
+            onclick={() => void petState.recolour(c.id)}
+          ></button>
+        {/each}
+        <button type="button" class="btn btn-muted" id="btnCoatRandom" onclick={() => void petState.recolour(pickCoat())}>{t('settings.coatRandom')}</button>
+      </div>
     </div>
   {/if}
   <div class="panel">
     <div class="section-head"><h2>{t('settings.day')}</h2></div>
+    <div class="setting-row">
+      <span class="t-field-label" id="styleLabel">{t('settings.style')}</span>
+      <div class="segmented" role="radiogroup" aria-labelledby="styleLabel">
+        {#each ['cozy', 'tamagotchi'] as const as style (style)}
+          <button type="button" role="radio" aria-checked={settings.current.style === style} data-style-option={style} onclick={() => settings.update({ style })}>
+            {t(`settings.style.${style}`)}
+          </button>
+        {/each}
+      </div>
+    </div>
+    <p class="t-hint" id="styleHint">{t(`settings.style.${settings.current.style}Hint`)}</p>
     <div class="times">
       <label class="field">
         <span class="t-field-label">{t('settings.bedtime')}</span>
@@ -138,8 +170,12 @@
       </div>
     {/if}
     <div class="switches">
-      <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.reminders')} hint={t('settings.remindersHint')} onchange={(on) => void setReminders(on)} />
-      <Switch id="switchGentle" checked={settings.current.gentle} label={t('settings.gentle')} hint={t('settings.gentleHint')} onchange={(on) => settings.update({ gentle: on })} />
+      {#if settings.current.style === 'cozy'}
+        <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.invitations')} hint={t('settings.invitationsHint')} onchange={(on) => void setReminders(on)} />
+      {:else}
+        <Switch id="switchReminders" checked={settings.current.reminders} label={t('settings.reminders')} hint={t('settings.remindersHint')} onchange={(on) => void setReminders(on)} />
+        <Switch id="switchGentle" checked={settings.current.gentle} label={t('settings.gentle')} hint={t('settings.gentleHint')} onchange={(on) => settings.update({ gentle: on })} />
+      {/if}
     </div>
   </div>
   {#if pet && pet.stage !== 'seedpod'}
@@ -227,5 +263,34 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
     margin-bottom: var(--space-3);
+  }
+  .coat-label {
+    display: block;
+    margin-top: var(--space-4);
+  }
+  .coats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  /* A square swatch with stepped corners, in the pixel idiom. */
+  .coat {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: var(--swatch);
+    clip-path: polygon(0 6px, 6px 6px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px));
+    box-shadow:
+      inset 0 -6px 0 color-mix(in oklab, var(--swatch) 72%, var(--pet-mouth)),
+      inset 0 6px 0 color-mix(in oklab, var(--swatch) 60%, var(--pet-eye));
+    cursor: pointer;
+  }
+  .coat[aria-checked='true'] {
+    box-shadow:
+      inset 0 0 0 4px var(--accent-bright),
+      inset 0 -10px 0 color-mix(in oklab, var(--swatch) 72%, var(--pet-mouth));
   }
 </style>

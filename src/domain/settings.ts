@@ -1,6 +1,8 @@
 // The person's preferences. Plain data and its validation; the reactive copy
 // lives in src/state/settings.svelte.ts.
 
+import type { CareStyle } from './pet';
+
 export type ThemeSetting = 'system' | 'light' | 'dark';
 
 export interface Settings {
@@ -8,7 +10,9 @@ export interface Settings {
   /** When the pet goes to bed and wakes up, as "HH:MM" local time. It sleeps when you do. */
   bedtime: string;
   wake: string;
-  /** Reminders when a need runs low (src/platform/notify.ts). */
+  /** Cozy (needs settle, it never falls ill from being left) or the classic Tamagotchi rules. */
+  style: CareStyle;
+  /** In Cozy, at most one good-news invitation a day; in Tamagotchi, reminders when a need runs low. Off by default. */
   reminders: boolean;
   /** Soft chirps when the pet reacts. */
   sound: boolean;
@@ -24,7 +28,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   bedtime: '22:30',
   wake: '07:00',
-  reminders: true,
+  style: 'cozy',
+  reminders: false,
   sound: true,
   haptics: true,
   gentle: false,
@@ -46,6 +51,7 @@ export function normaliseSettings(value: unknown): Settings {
   const clock = (key: 'bedtime' | 'wake') => (typeof v[key] === 'string' && CLOCK.test(v[key] as string) ? (v[key] as string) : DEFAULT_SETTINGS[key]);
   const settings: Settings = {
     theme: THEMES.includes(v.theme as ThemeSetting) ? (v.theme as ThemeSetting) : DEFAULT_SETTINGS.theme,
+    style: v.style === 'tamagotchi' || v.style === 'cozy' ? v.style : DEFAULT_SETTINGS.style,
     bedtime: clock('bedtime'),
     wake: clock('wake'),
     reminders: bool('reminders'),

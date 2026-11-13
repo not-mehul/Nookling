@@ -7,6 +7,7 @@
 // minute while open, and the notification scheduler simulates ahead.
 // ============================================================
 
+import type { CoatId } from '../pet/coats';
 import { clockMinutes } from './settings';
 import type { Food } from './foods';
 import type { Form, Stage } from '../pet/types';
@@ -56,6 +57,8 @@ export interface Pet {
   warmth: number;
   stage: Stage;
   form: Form | null;
+  /** The colour of its fur (src/pet/coats.ts). Older pets have none and get one from their id. */
+  coat?: CoatId;
   traits: Trait[];
   needs: Needs;
   /** Hidden. Falls only while two or more needs sit below a fifth. */
@@ -78,6 +81,8 @@ export interface Pet {
   care: CareTally;
   /** Since when every need has been at half or more; null once one dips. */
   goodSince?: number | null;
+  /** Meals eaten, for how often a meal makes a mess in Cozy. */
+  meals?: number;
   /** When it had its first whole good day (src/domain/delights.ts). */
   goodDayAt?: number | null;
   /** When this state was true. */
@@ -89,10 +94,24 @@ export interface Schedule {
   bedtime: string;
   wake: string;
   gentle: boolean;
+  /**
+   * Cozy (the app's default): needs settle at a floor instead of running out,
+   * it never falls ill from being left, and it tidies up overnight. Tamagotchi:
+   * the classic rules. Left out, the classic rules apply.
+   */
+  style?: CareStyle;
 }
+
+export type CareStyle = 'cozy' | 'tamagotchi';
+
+/** In Cozy, no need falls below this on its own: a little peckish, never miserable. */
+export const COZY_FLOOR = 0.3;
+
+const cozy = (schedule: Schedule) => schedule.style === 'cozy';
 
 export type PetEventKind =
   | 'hatched'
+  | 'tidied'
   | 'good-day'
   | 'grew'
   | 'fell-asleep'
@@ -151,10 +170,11 @@ const TRAIT_RATES: Record<Trait, Partial<Needs>> = {
   chatty: { mood: 1.1 },
 };
 
-export function newPet(id: string, name: string, now: number, traits: Trait[]): Pet {
+export function newPet(id: string, name: string, now: number, traits: Trait[], coat?: CoatId): Pet {
   return {
     id,
     name,
+    ...(coat ? { coat } : {}),
     createdAt: now,
     hatchedAt: null,
     warmth: 0,
@@ -236,12 +256,14 @@ function rates(pet: Pet, asleep: boolean, schedule: Schedule, t: number): { need
   }
   // Sluggish after too many treats: energy drains faster while awake.
   if (!asleep && pet.sluggishUntil && t < pet.sluggishUntil) needs.energy *= 1.5;
-  // A need already at its limit stays there.
+  // A need already at its limit stays there. In Cozy the lower limit is the floor.
+  const floor = cozy(schedule) ? COZY_FLOOR : 0;
   for (const need of NEEDS) {
-    if ((pet.needs[need] <= 0 && needs[need] < 0) || (pet.needs[need] >= 1 && needs[need] > 0)) needs[need] = 0;
+    if ((pet.needs[need] <= floor + 1e-9 && needs[need] < 0) || (pet.needs[need] >= 1 && needs[need] > 0)) needs[need] = 0;
   }
   const empties = NEEDS.filter((n) => pet.needs[n] < EMPTY).length;
-  let health = empties >= 2 ? -1 / (HEALTH_FALL_HOURS * HOUR) : 1 / (HEALTH_RISE_HOURS * HOUR);
+  // In Cozy, being left never makes it ill: Health only mends.
+  let health = empties >= 2 && !cozy(schedule) ? -1 / (HEALTH_FALL_HOURS * HOUR) : 1 / (HEALTH_RISE_HOURS * HOUR);
   if ((pet.health <= 0 && health < 0) || (pet.health >= 1 && health > 0)) health = 0;
   return { needs, health };
 }
@@ -291,6 +313,12 @@ export function simulate(start: Pet, to: number, schedule: Schedule): Simulated 
     if (asleep !== pet.asleep) {
       pet.asleep = asleep;
       events.push({ kind: asleep ? 'fell-asleep' : 'woke', at: t });
+      // In Cozy it tidies up after itself overnight.
+      if (!asleep && cozy(schedule) && pet.messes > 0) {
+        pet.messes = 0;
+        pet.messAt = null;
+        events.push({ kind: 'tidied', at: t });
+      }
     }
 
     // The segment ends at the first moment a rate could change.
@@ -305,7 +333,7 @@ export function simulate(start: Pet, to: number, schedule: Schedule): Simulated 
 
     const r = rates(pet, asleep, schedule, t);
     for (const need of NEEDS) {
-      for (const target of [LOW, EMPTY, 0]) end = Math.min(end, t + timeTo(pet.needs[need], r.needs[need], target));
+      for (const target of cozy(schedule) ? [COZY_FLOOR] : [LOW, EMPTY, 0]) end = Math.min(end, t + timeTo(pet.needs[need], r.needs[need], target));
       if (r.needs[need] > 0) end = Math.min(end, t + timeTo(pet.needs[need], r.needs[need], 1));
     }
     for (const target of [UNWELL, RECOVERED, 0, 1]) end = Math.min(end, t + timeTo(pet.health, r.health, target));
@@ -347,6 +375,7 @@ export function simulate(start: Pet, to: number, schedule: Schedule): Simulated 
       if (pet.messes < MAX_MESSES) {
         pet.messes += 1;
         pet.needs.tidiness = clamp01(pet.needs.tidiness - MESS_TIDINESS);
+        if (cozy(schedule)) pet.needs.tidiness = Math.max(pet.needs.tidiness, COZY_FLOOR);
         events.push({ kind: 'mess', at: t });
       }
     }
@@ -423,7 +452,7 @@ function basics(pet: Pet): Refusal | null {
   return null;
 }
 
-export function feed(pet: Pet, food: Food, now: number, canHaveIt: boolean): Cared {
+export function feed(pet: Pet, food: Food, now: number, canHaveIt: boolean, style: CareStyle = 'tamagotchi'): Cared {
   const no = basics(pet);
   if (no) return { ok: false, why: no };
   if (pet.asleep) return { ok: false, why: 'asleep' };
@@ -438,7 +467,11 @@ export function feed(pet: Pet, food: Food, now: number, canHaveIt: boolean): Car
     next.treats = [...next.treats.filter((at) => at > now - 2 * HOUR), now];
     if (next.treats.length > 3) next.sluggishUntil = now + HOUR;
   }
-  if (food.kind === 'meal' || food.kind === 'fruit') next.messAt ??= now + DIGEST;
+  if (food.kind === 'meal' || food.kind === 'fruit') {
+    next.meals = (next.meals ?? 0) + 1;
+    // In Cozy only every third meal makes a mess.
+    if (style !== 'cozy' || next.meals % 3 === 0) next.messAt ??= now + DIGEST;
+  }
   if (next.stage === 'nookling' && !next.care.foods.includes(food.id)) next.care.foods = [...next.care.foods, food.id];
   next.bond = clamp01(next.bond + 0.005);
   return { ok: true, pet: next };

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { coatColour, coatOf } from './pet/coats';
   import { IconTabs, ThemeToggle, Toast, konami, play, secretTaps } from 'dusk-dawn';
   import { cheer, hatchEgg } from './lib/delight';
   import Icon from './components/ui/Icon.svelte';
@@ -25,6 +26,12 @@
   $effect(() => applyTheme(settings.current.theme));
   $effect(() => setSound(settings.current.sound));
   $effect(() => setHaptics(settings.current.haptics));
+  // Its coat, for every picture of it on the page (Pet.svelte reads --pet-coat).
+  $effect(() => {
+    const pet = petState.pet;
+    if (pet) document.documentElement.style.setProperty('--pet-coat', coatColour(coatOf(pet)));
+    else document.documentElement.style.removeProperty('--pet-coat');
+  });
   // Easter eggs (style.md §11.3). The Konami code: a somersault and sparks.
   // Seven taps on the title: the fluff tickles its nose.
   let title = $state<HTMLElement>();

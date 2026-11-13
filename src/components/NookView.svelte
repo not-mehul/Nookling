@@ -6,9 +6,24 @@
   import FoodIcon from './FoodIcon.svelte';
   import NeedMeter from './NeedMeter.svelte';
   import PlaySheet from './PlaySheet.svelte';
+  import ChatBubble from './ChatBubble.svelte';
+  import FidgetSheet from './FidgetSheet.svelte';
+  import TricksSheet from './TricksSheet.svelte';
+  import { nextQuestion, recollection, type Question } from '../world/chat';
+  import { known } from '../world/tricks';
   import type { Game } from '../domain/games';
   import Icon from './ui/Icon.svelte';
-  import { FOODS, canHave, type Food } from '../domain/foods';
+  import { canHave, foodById, pantry, type Food } from '../domain/foods';
+  import DecorLayer from './DecorLayer.svelte';
+  import DecorPanel from './DecorPanel.svelte';
+  import WardrobeSheet from './WardrobeSheet.svelte';
+  import PhotoSheet from './PhotoSheet.svelte';
+  import QuietSheet from './QuietSheet.svelte';
+  import SeasonLayer from './SeasonLayer.svelte';
+  import TodayPanel from './TodayPanel.svelte';
+  import VisitorArt from '../world/art/VisitorArt.svelte';
+  import { DECOR } from '../world/decor';
+  import { grownFoods } from '../world/garden';
   import { NEEDS, type PetEvent, type Refusal } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { cheer, hatchEgg } from '../lib/delight';
@@ -24,6 +39,10 @@
   import type { Expression, Reaction } from '../pet/types';
   import { petState, type CareResult } from '../state/pet.svelte';
   import { ui } from '../state/ui.svelte';
+  import { worldState } from '../state/world.svelte';
+  import GiftBundle from '../world/art/GiftBundle.svelte';
+  import TreasureIcon from '../world/art/TreasureIcon.svelte';
+  import { treasureById, type Treasure } from '../world/treasures';
 
   const pet = $derived(petState.pet);
   const name = $derived(pet?.name ?? '');
@@ -41,6 +60,21 @@
   let dragging = $state<{ food: Food; x: number; y: number } | null>(null);
   let cuddling = $state(false);
   let playOpen = $state(false);
+  let fidgetOpen = $state(false);
+  let wardrobeOpen = $state(false);
+  let photoOpen = $state(false);
+  let quietOpen = $state(false);
+  /** The visitor's card, open after a tap on them. */
+  let greeting = $state(false);
+  const visit = $derived(pet && pet.stage !== 'seedpod' && !pet.awayUntil ? worldState.world.visit : null);
+  let decorating = $state(false);
+  const foods = $derived(pantry(grownFoods(worldState.world.garden), worldState.dishFoods));
+  let tricksOpen = $state(false);
+  /** Its question in a picture bubble, until you reply. */
+  let asking = $state.raw<Question | null>(null);
+  /** Something it says, over the status line for a few seconds. */
+  let saying = $state('');
+  let sayTimer: ReturnType<typeof setTimeout> | undefined;
   let bubbles = $state<{ id: number; x: number; y: number }[]>([]);
   /** Turned away after too much tickling, until then. */
   let sulkUntil = 0;
@@ -50,7 +84,11 @@
   /** Ticks each minute, so it gets drowsy before bedtime with the app left open. */
   let clock = $state(Date.now());
   const sleepyHour = $derived(drowsy(clock, settings.current));
-  const face = $derived(pet ? (held ?? restingFace(pet, sleepyHour)) : 'content');
+  const moment = $derived(pet && pet.stage !== 'seedpod' && !pet.asleep ? worldState.moment : null);
+  const face = $derived(pet ? (held ?? moment?.expression ?? restingFace(pet, sleepyHour)) : 'content');
+  /** The find just opened, shown until the next one or a tap. */
+  let opened = $state<{ treasure: Treasure; isNew: boolean } | null>(null);
+  const gifts = $derived(pet && pet.stage !== 'seedpod' && !pet.awayUntil ? worldState.world.waiting.length : 0);
   const wear = $derived.by(() => {
     const out: Prop[] = [];
     const sibling = pet && pet.stage !== 'seedpod' ? siblingProp(pet.name) : null;
@@ -58,7 +96,35 @@
     if (pet && isBirthday(pet, clock)) out.push('cake');
     return out;
   });
-  const statusLine = $derived(pet ? t(`status.${status(pet)}` as MessageKey, { name }) : '');
+  const statusLine = $derived(pet ? (saying ? saying : moment ? t(`moment.${moment.id}` as MessageKey, { name }) : t(`status.${status(pet)}` as MessageKey, { name })) : '');
+
+  // A moment lasts until it notices you: a tap, or a few seconds.
+  $effect(() => {
+    if (!moment) return;
+    const timer = setTimeout(() => notice(), 6000);
+    return () => clearTimeout(timer);
+  });
+  function notice() {
+    if (!worldState.moment) return;
+    worldState.noticed();
+    hold('surprised', 500);
+    setTimeout(() => (hold('happy', 1000), move('hop'), chirp('boop')), 450);
+  }
+
+  async function openGift() {
+    worldState.noticed();
+    const got = await worldState.receive();
+    if (!got) return;
+    const treasure = treasureById(got.find.treasureId);
+    if (!treasure) return;
+    opened = { treasure, isNew: got.isNew };
+    hold('happy', 1800);
+    move('bounce');
+    chirp('happy');
+    buzz('light');
+    if (got.isNew) cheer(frame, { count: 50 });
+    ui.notify(t(got.isNew ? 'gift.new' : 'gift.again', { name, treasure: treasure.name.toLowerCase() }), got.isNew ? 'celebrate' : 'success');
+  }
   let heldTimer: ReturnType<typeof setTimeout> | undefined;
 
   function hold(expression: Expression, ms = 1400) {
@@ -69,6 +135,93 @@
 
   function move(kind: Reaction) {
     void rig?.react(kind);
+  }
+
+  function say(line: string, ms = 4500) {
+    clearTimeout(sayTimer);
+    saying = line;
+    sayTimer = setTimeout(() => (saying = ''), ms);
+  }
+
+  // ── A dish from Mise or a book from BookShelf, once you say yes.
+  async function acceptSibling() {
+    const link = ui.incoming;
+    ui.incoming = null;
+    if (!link) return;
+    if (link.kind === 'cooked') {
+      await worldState.addDish(link.dish);
+      hold('happy', 1600);
+      move('bounce');
+      chirp('chomp');
+      ui.notify(t('sibling.dishAdded', { dish: link.dish, name }), 'celebrate');
+    } else {
+      await worldState.addBook(link.title, link.author);
+      hold('happy', 1600);
+      move('hop');
+      chirp('happy');
+      ui.notify(t('sibling.bookGiven', { title: link.title, name }), 'celebrate');
+    }
+  }
+
+  // ── Visitors
+  async function favour(who: string) {
+    greeting = false;
+    await worldState.favour();
+    hold('happy', 1600);
+    move('bounce');
+    chirp('happy');
+    ui.notify(t('visitor.thanks', { visitor: who, name }), 'celebrate');
+  }
+  async function farewell(who: string) {
+    greeting = false;
+    await worldState.farewell();
+    move('hop');
+    ui.notify(t('visitor.bye', { visitor: who }), 'info');
+  }
+
+  // ── Chat: it asks; you answer; it remembers.
+  function chat() {
+    if (!pet) return;
+    if (pet.asleep) return refused('asleep');
+    if (asking) return (asking = null);
+    const q = nextQuestion(worldState.world.chat);
+    if (q) {
+      asking = q;
+      hold('surprised', 600);
+      chirp('boop');
+      return;
+    }
+    // It has asked everything: it brings something up instead.
+    const told = recollection(worldState.world.chat);
+    if (told) say(t(`chat.${told[0]}.${told[1]}.recall` as MessageKey, { name }));
+    hold('happy', 1200);
+    chirp('happy');
+  }
+  async function reply(r: number) {
+    const q = asking;
+    if (!q) return;
+    asking = null;
+    await worldState.answer(q.id, r);
+    say(t(`chat.${q.id}.${r}.said` as MessageKey, { name }));
+    hold('happy', 1400);
+    move('hop');
+    chirp('happy');
+  }
+
+  // ── Give the phone a shake and it wobbles, dizzy.
+  let lastShake = 0;
+  function shaken(e: DeviceMotionEvent) {
+    const a = e.accelerationIncludingGravity ?? e.acceleration;
+    if (!a || !pet || pet.stage === 'seedpod' || pet.awayUntil) return;
+    const force = Math.hypot(a.x ?? 0, a.y ?? 0, a.z ?? 0);
+    const now = Date.now();
+    if (force < 24 || now - lastShake < 1500) return;
+    lastShake = now;
+    if (pet.asleep) return move('shiver');
+    move('wobble');
+    hold('dizzy', 1600);
+    chirp('giggle');
+    buzz('medium');
   }
 
   function refused(why: Refusal) {
@@ -106,6 +259,7 @@
       }
       return;
     }
+    if (worldState.moment) return notice();
     if (Date.now() < sulkUntil) return;
     const result = await petState.stroke('boop');
     if (!result.ok) return;
@@ -268,6 +422,38 @@
   }
 
   function idle(kind: ReturnType<typeof idleBeat>) {
+    // Now and then, instead, it gets up to something.
+    const roll = Math.random();
+    if (roll < 0.12) return worldState.catchMoment();
+    const tricks = known(worldState.world.tricks);
+    if (roll < 0.22 && tricks.length) {
+      const trick = tricks[Math.floor(Math.random() * tricks.length)]!;
+      hold('happy', 1200);
+      say(t('tricks.showsOff', { name, trick: t(`trick.${trick.id}` as MessageKey).toLowerCase() }), 3000);
+      return move(trick.move);
+    }
+    const things = DECOR.filter((d) => worldState.world.decor[d.id]);
+    if (roll < 0.36 && things.length) {
+      const d = things[Math.floor(Math.random() * things.length)]!;
+      const at = worldState.world.decor[d.id]!;
+      look = { x: (at.x - 0.5) * 2, y: (at.y - 0.5) * 1.2 };
+      setTimeout(() => (look = { x: 0, y: 0 }), 2000);
+      say(t(`decor.${d.id}.use` as MessageKey, { name }), 3500);
+      hold('happy', 1200);
+      return move(d.use);
+    }
+    const books = worldState.world.books;
+    if (roll < 0.4 && books.length) {
+      const b = books[Math.floor(Math.random() * Math.min(books.length, 5))]!;
+      hold('content', 2500);
+      look = { x: 0, y: 0.7 };
+      setTimeout(() => (look = { x: 0, y: 0 }), 2500);
+      return say(t('sibling.reading', { name, title: b.title }), 4000);
+    }
+    if (roll < 0.46) {
+      const told = recollection(worldState.world.chat);
+      if (told) return say(t(`chat.${told[0]}.${told[1]}.recall` as MessageKey, { name }));
+    }
     switch (kind) {
       case 'look':
         look = { x: Math.random() * 2 - 1, y: Math.random() * 1.2 - 0.6 };
@@ -310,13 +496,15 @@
 
   async function played(game: Game, score: number) {
     playOpen = false;
-    const result = await petState.play(game, score);
+    const record = await worldState.played(game, score);
+    const result = await petState.play(game, record.score);
     if (!result.ok) return refused(result.why);
     hold('happy');
     move('hop');
     chirp('happy');
     const verdict = t(score >= 0.8 ? 'game.result.great' : score >= 0.4 ? 'game.result.good' : 'game.result.ok');
-    ui.notify(t('game.done', { name, result: verdict }), 'success');
+    const extra = record.daily ? ` ${t('game.dailyThanks')}` : record.best ? ` ${t('game.newBest')}` : '';
+    ui.notify(t('game.done', { name, result: verdict }) + extra, record.daily || record.best ? 'celebrate' : 'success');
   }
 
   function wait(ms: number) {
@@ -342,6 +530,12 @@
   }
 
   function welcomeLine(events: PetEvent[]): string {
+    // Cozy: coming back opens with joy, never a list of what went wrong.
+    if (settings.current.style === 'cozy') {
+      if (!events.length) return '';
+      const tidied = events.some((e) => e.kind === 'tidied');
+      return t('welcome.missed', { name }) + (tidied ? ` ${t('welcome.tidied')}` : '');
+    }
     const parts = summarise(events).map(({ kind, count }) => t(`away.${kind}` as MessageKey, { count }));
     if (!parts.length) return '';
     const list = new Intl.ListFormat('en', { type: 'conjunction' }).format(parts);
@@ -407,7 +601,10 @@
     };
     beat();
     const minute = setInterval(() => (clock = Date.now()), 60_000);
+    window.addEventListener('devicemotion', shaken);
     return () => {
+      window.removeEventListener('devicemotion', shaken);
+      clearTimeout(sayTimer);
       clearInterval(minute);
       stop();
       clearTimeout(timer);
@@ -423,9 +620,27 @@
     <Adopt />
   {:else}
     <section class="panel room" class:is-night={pet.asleep} aria-label={t('tabs.nook')} onpointermove={follow} onpointerleave={() => (look = { x: 0, y: 0 })}>
+      {#if !pet.awayUntil && pet.stage !== 'seedpod'}
+        <div class="room-tools">
+          <button type="button" class="btn-icon" id="btnDecorate" aria-pressed={decorating} aria-label={t('decor.title')} title={t('decor.title')} onclick={() => (decorating = !decorating)}>
+            <Icon name="brush" size={20} />
+          </button>
+          <button type="button" class="btn-icon" id="btnWardrobe" aria-label={t('wardrobe.open')} title={t('wardrobe.open')} onclick={() => (wardrobeOpen = true)}>
+            <Icon name="shirt" size={20} />
+          </button>
+        </div>
+      {/if}
       {#if !pet.awayUntil}
-        <button type="button" class="btn-icon snap" id="btnPicture" disabled={snapping} aria-label={t('nook.picture')} title={t('nook.picture')} onclick={picture}>
+        <button type="button" class="btn-icon snap" id="btnPicture" disabled={snapping} aria-label={t('nook.picture')} title={t('nook.picture')} onclick={() => (pet.stage === 'seedpod' ? picture() : (photoOpen = true))}>
           <Icon name="camera" size={20} />
+        </button>
+      {/if}
+      <div class="scene">
+      <SeasonLayer now={clock} />
+      <DecorLayer editing={decorating} night={pet.asleep} />
+      {#if visit && !decorating}
+        <button type="button" class="visitor" id="btnVisitor" aria-expanded={greeting} aria-label={t('visitor.open', { visitor: t(`visitor.${visit.id}` as MessageKey) })} onclick={() => (greeting = !greeting)}>
+          <VisitorArt id={visit.id} size={60} />
         </button>
       {/if}
       <div class="pet-frame" bind:this={frame}>
@@ -449,6 +664,8 @@
             unwell={pet.unwell}
             label={statusLine}
             {wear}
+            outfit={pet.stage === 'seedpod' ? {} : worldState.world.wardrobe.wearing}
+            moment={moment?.prop ?? null}
           />
         </button>
         {#if flying}
@@ -461,13 +678,57 @@
           <svg class="mess mess-{i}" viewBox="-12 -8 24 16" aria-hidden="true"><path d="M-10 6Q-10 -2 -4 -3Q-2 -8 3 -6Q9 -6 10 6Z" /></svg>
         {/each}
       </div>
+      </div>
+      {#if gifts}
+        <button type="button" class="gift-button dd-pressable" id="btnGift" aria-label={t('gift.open', { name })} onclick={openGift}>
+          <GiftBundle size={52} />
+          {#if gifts > 1}<span class="gift-count t-data">{gifts}</span>{/if}
+        </button>
+      {/if}
       <p class="status-line" id="statusLine" aria-live="polite">{statusLine}</p>
+      {#if opened}
+        <button type="button" class="found" id="foundCard" onclick={() => (opened = null)} aria-label={t('gift.close')}>
+          <TreasureIcon treasure={opened.treasure} size={44} />
+          <span class="found-text">
+            <span class="found-name">{opened.treasure.name}{#if opened.isNew}<span class="found-new t-data"> · {t('gift.newBadge')}</span>{/if}</span>
+            <span class="t-hint">{opened.treasure.note}</span>
+          </span>
+        </button>
+      {/if}
+      {#if ui.incoming && pet.stage !== 'seedpod'}
+        {@const link = ui.incoming}
+        <div class="found sibling-card" id="siblingCard" role="group" aria-label={t(link.kind === 'cooked' ? 'sibling.cookedLabel' : 'sibling.readLabel')}>
+          <span class="found-text">
+            <span class="found-name">{link.kind === 'cooked' ? t('sibling.cooked', { dish: link.dish, name }) : t('sibling.read', { title: link.title, name })}</span>
+            <span class="t-hint">{t(link.kind === 'cooked' ? 'sibling.cookedHint' : 'sibling.readHint', { name })}</span>
+            <span class="visitor-actions">
+              <button type="button" class="btn btn-secondary" id="btnSiblingYes" onclick={acceptSibling}>{t(link.kind === 'cooked' ? 'sibling.addDish' : 'sibling.giveBook')}</button>
+              <button type="button" class="btn btn-muted" id="btnSiblingNo" onclick={() => (ui.incoming = null)}>{t('sibling.notNow')}</button>
+            </span>
+          </span>
+        </div>
+      {/if}
+      {#if visit && greeting}
+        {@const who = t(`visitor.${visit.id}` as MessageKey)}
+        <div class="found visitor-card" id="visitorCard">
+          <VisitorArt id={visit.id} size={44} />
+          <span class="found-text">
+            <span class="found-name">{t('visitor.here', { visitor: who })}</span>
+            {#if visit.favour}{@const food = foodById(visit.favour.food)}<span class="t-hint">{t('visitor.asks', { food: (food?.name ?? '').toLowerCase() })}</span>{/if}
+            <span class="visitor-actions">
+              {#if visit.favour}{@const food = foodById(visit.favour.food)}<button type="button" class="btn btn-secondary" id="btnFavour" onclick={() => favour(who)}>{t('visitor.share', { food: (food?.name ?? '').toLowerCase() })}</button>{/if}
+              <button type="button" class="btn btn-muted" id="btnWave" onclick={() => farewell(who)}>{t('visitor.wave')}</button>
+            </span>
+          </span>
+        </div>
+      {/if}
+      {#if asking}<ChatBubble question={asking} {name} onreply={reply} />{/if}
       {#if welcome}<p class="t-hint welcome" id="welcomeLine">{welcome}</p>{/if}
       {#if trayOpen && pet.stage !== 'seedpod'}
         <div class="tray" id="foodTray">
           <p class="t-hint">{t('tray.hint', { name })}</p>
           <ul class="tray-list">
-            {#each FOODS as food (food.id)}
+            {#each foods as food (food.id)}
               {@const ok = canHave(food, pet.stage)}
               <li>
                 <button
@@ -495,14 +756,20 @@
       {/if}
     </section>
 
-    {#if pet.awayUntil}
+    {#if decorating}
+      <DecorPanel ondone={() => (decorating = false)} />
+    {:else if pet.awayUntil}
       <button type="button" class="btn btn-primary btn-block" id="btnComeBackNook" onclick={() => petState.comeBack()}>{t('care.comeBack', { name })}</button>
     {:else if pet.stage !== 'seedpod'}
+      {#if settings.current.style === 'cozy'}
+        <TodayPanel {name} now={clock} />
+      {:else}
       <section class="panel needs" aria-label={t('needs.label')}>
         {#each NEEDS as need (need)}
           <NeedMeter id="need-{need}" label={t(`need.${need}` as MessageKey)} value={pet.needs[need]} words={Object.fromEntries(Object.entries(NEED_WORDS[need]).map(([k, v]) => [k, t(v as MessageKey)])) as Record<'full' | 'fine' | 'low' | 'empty', string>} />
         {/each}
       </section>
+      {/if}
 
       <div class="care">
         <button type="button" class="btn btn-secondary" id="btnFeed" disabled={busy} aria-expanded={trayOpen} aria-controls="foodTray" onclick={() => (pet.asleep ? refused('asleep') : (trayOpen = !trayOpen))}>
@@ -523,12 +790,38 @@
           </button>
         {/if}
       </div>
+      <div class="fun" aria-label={t('fun.label', { name })} role="group">
+        <button type="button" class="btn btn-muted" id="btnChat" aria-expanded={!!asking} onclick={chat}><Icon name="chat" size={16} />{t('fun.chat')}</button>
+        <button type="button" class="btn btn-muted" id="btnTricks" onclick={() => (pet.asleep ? refused('asleep') : (tricksOpen = true))}><Icon name="wand" size={16} />{t('fun.tricks')}</button>
+        <button type="button" class="btn btn-muted" id="btnQuiet" onclick={() => (quietOpen = true)}><Icon name="moon" size={16} />{t('fun.quiet')}</button>
+        <button type="button" class="btn btn-muted" id="btnFidget" onclick={() => (pet.asleep ? refused('asleep') : (fidgetOpen = true))}><Icon name="hand" size={16} />{t('fun.fidget')}</button>
+      </div>
     {/if}
   {/if}
 </div>
 
 {#if playOpen && pet}
   <PlaySheet {name} stage={pet.stage} form={pet.form} onresult={played} onclose={() => (playOpen = false)} />
+{/if}
+
+{#if photoOpen && pet}
+  <PhotoSheet {name} stage={pet.stage} form={pet.form} {wear} onclose={() => (photoOpen = false)} />
+{/if}
+
+{#if quietOpen && pet}
+  <QuietSheet {name} stage={pet.stage} form={pet.form} onclose={() => (quietOpen = false)} />
+{/if}
+
+{#if wardrobeOpen && pet}
+  <WardrobeSheet {name} stage={pet.stage} form={pet.form} onclose={() => (wardrobeOpen = false)} />
+{/if}
+
+{#if fidgetOpen && pet}
+  <FidgetSheet {name} stage={pet.stage} form={pet.form} onclose={() => (fidgetOpen = false)} />
+{/if}
+
+{#if tricksOpen && pet}
+  <TricksSheet {name} stage={pet.stage} form={pet.form} onclose={() => (tricksOpen = false)} />
 {/if}
 
 {#if dragging}
@@ -549,14 +842,133 @@
   .room.is-night {
     background-color: rgba(var(--shadow-rgb), calc(0.35 * var(--shadow-strength)));
   }
+  .gift-button {
+    position: absolute;
+    right: var(--space-3);
+    top: 30%;
+    z-index: 1;
+    padding: var(--space-1);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    animation: nudge 2.4s ease-in-out infinite;
+  }
+  @keyframes nudge {
+    0%,
+    80%,
+    100% {
+      rotate: 0deg;
+    }
+    85% {
+      rotate: -8deg;
+    }
+    90% {
+      rotate: 8deg;
+    }
+    95% {
+      rotate: -4deg;
+    }
+  }
+  .gift-count {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--accent-bright);
+    color: var(--on-accent);
+    font-size: 0.75rem;
+  }
+  .found {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+    width: 100%;
+    max-width: 360px;
+    padding: var(--space-3);
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    background: var(--panel-bg-faint);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--corner-lg);
+    cursor: pointer;
+  }
+  .found-text {
+    display: grid;
+    gap: 2px;
+  }
+  .found-name {
+    color: var(--text-heading);
+    font-weight: 600;
+  }
+  .found-new {
+    color: var(--accent-bright);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gift-button {
+      animation: none;
+    }
+  }
+  /* Above the nook's things (DecorLayer). */
+  .status-line,
+  .welcome,
+  .tray,
+  .warmth,
+  .found {
+    position: relative;
+    z-index: 1;
+  }
+  .visitor {
+    position: absolute;
+    left: 4%;
+    bottom: 8%;
+    z-index: 2;
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+  /* The critter potters about inside a still tap target. */
+  .visitor :global(svg) {
+    animation: potter 6s ease-in-out infinite;
+  }
+  @keyframes potter {
+    50% {
+      translate: 8px 0;
+    }
+  }
+  .visitor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  .room-tools {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 3;
+    display: flex;
+    gap: var(--space-1);
+  }
   .snap {
     position: absolute;
     top: var(--space-3);
     right: var(--space-3);
     z-index: 1;
   }
+  .scene {
+    position: relative;
+    width: 100%;
+    display: grid;
+    justify-items: center;
+    padding: var(--space-4) 0 var(--space-2);
+  }
   .pet-frame {
     position: relative;
+    z-index: 1;
     width: min(100%, 340px);
   }
   .pet-button {
@@ -705,6 +1117,18 @@
     gap: var(--space-2);
     margin-bottom: var(--space-5);
   }
+  .fun {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: calc(-1 * var(--space-3)) 0 var(--space-5);
+  }
+  .fun .btn {
+    width: 100%;
+    justify-content: center;
+    gap: var(--space-1);
+    font-size: 0.875rem;
+  }
   .care .btn {
     width: 100%;
     justify-content: center;
@@ -717,6 +1141,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .pet-button.is-cuddled :global(.rig),
+    .visitor :global(svg),
     .bubble {
       animation: none;
     }

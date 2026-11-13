@@ -3,6 +3,7 @@
 
 import Dexie, { type EntityTable } from 'dexie';
 import type { Pet } from '../domain/pet';
+import type { World } from '../world/world';
 
 /** One line of the care log (the Journal). */
 export interface LogEntry {
@@ -26,6 +27,8 @@ export class NooklingDb extends Dexie {
   pets!: EntityTable<Pet, 'id'>;
   log!: EntityTable<LogEntry, 'id'>;
   photos!: EntityTable<Photo, 'id'>;
+  /** One row: the pet's world (src/world/world.ts). */
+  world!: EntityTable<World, 'id'>;
 
   constructor(name = 'nookling') {
     super(name);
@@ -35,6 +38,8 @@ export class NooklingDb extends Dexie {
       log: 'id, petId, at',
       photos: 'id, petId, at',
     });
+    // 0.2: the world beyond its needs (finds, moments, and later the nook and garden).
+    this.version(2).stores({ world: 'id' });
   }
 }
 

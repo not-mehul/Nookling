@@ -45,7 +45,19 @@ export class GestureReader {
   }
 
   down(x: number, y: number, at: number): void {
-    this.press = { x, y, at, lastX: x, travelled: 0, dir: 0, turns: 0, moved: false, stroked: false, scrubbed: false, holding: false };
+    this.press = {
+      x,
+      y,
+      at,
+      lastX: x,
+      travelled: 0,
+      dir: 0,
+      turns: 0,
+      moved: false,
+      stroked: false,
+      scrubbed: false,
+      holding: false,
+    };
     clearTimeout(this.holdTimer);
     this.holdTimer = setTimeout(() => this.hold(), HOLD_MS);
   }
@@ -69,7 +81,12 @@ export class GestureReader {
       p.scrubbed = true;
       this.handlers.onscrub?.();
     }
-    if (!p.stroked && p.turns < 2 && p.travelled >= STROKE_DISTANCE && Math.abs(x - p.x) >= STROKE_DISTANCE * 0.8) {
+    if (
+      !p.stroked &&
+      p.turns < 2 &&
+      p.travelled >= STROKE_DISTANCE &&
+      Math.abs(x - p.x) >= STROKE_DISTANCE * 0.8
+    ) {
       p.stroked = true;
       this.handlers.onstroke?.();
     }
@@ -83,7 +100,8 @@ export class GestureReader {
     if (p.holding) return this.handlers.oncuddle?.(false);
     if (p.moved) return;
     this.taps = [...this.taps.filter((t) => at - t < BURST_MS), at];
-    if (this.taps.length >= TICKLE_FROM) this.handlers.ontickle?.(this.taps.length);
+    if (this.taps.length >= TICKLE_FROM)
+      this.handlers.ontickle?.(this.taps.length);
     else this.handlers.ontap?.();
   }
 
@@ -115,31 +133,31 @@ export function petGestures(node: HTMLElement, handlers: GestureHandlers) {
   const up = (e: PointerEvent) => reader.up(e.timeStamp);
   const cancel = () => reader.cancel();
   const key = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       reader.down(0, 0, e.timeStamp);
       reader.up(e.timeStamp);
     }
   };
   const menu = (e: Event) => e.preventDefault();
-  node.addEventListener('pointerdown', down);
-  node.addEventListener('pointermove', move);
-  node.addEventListener('pointerup', up);
-  node.addEventListener('pointercancel', cancel);
-  node.addEventListener('keydown', key);
-  node.addEventListener('contextmenu', menu);
+  node.addEventListener("pointerdown", down);
+  node.addEventListener("pointermove", move);
+  node.addEventListener("pointerup", up);
+  node.addEventListener("pointercancel", cancel);
+  node.addEventListener("keydown", key);
+  node.addEventListener("contextmenu", menu);
   return {
     update(next: GestureHandlers) {
       reader.update(next);
     },
     destroy() {
       reader.cancel();
-      node.removeEventListener('pointerdown', down);
-      node.removeEventListener('pointermove', move);
-      node.removeEventListener('pointerup', up);
-      node.removeEventListener('pointercancel', cancel);
-      node.removeEventListener('keydown', key);
-      node.removeEventListener('contextmenu', menu);
+      node.removeEventListener("pointerdown", down);
+      node.removeEventListener("pointermove", move);
+      node.removeEventListener("pointerup", up);
+      node.removeEventListener("pointercancel", cancel);
+      node.removeEventListener("keydown", key);
+      node.removeEventListener("contextmenu", menu);
     },
   };
 }

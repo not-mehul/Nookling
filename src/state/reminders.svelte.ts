@@ -4,7 +4,9 @@
 import { planReminders, type ReminderKind } from '../domain/reminders';
 import { t } from '../i18n/index.svelte';
 import { clearReminders, reminderPermission, scheduleReminders, type Permission } from '../platform/notify';
+import { planInvitations } from '../world/world';
 import { petState } from './pet.svelte';
+import { worldState } from './world.svelte';
 import { settings } from './settings.svelte';
 
 class RemindersState {
@@ -18,8 +20,16 @@ class RemindersState {
   async plan(now = Date.now()): Promise<void> {
     const pet = petState.pet;
     if (!pet || !settings.current.reminders) return clearReminders();
-    const { bedtime, wake, gentle } = settings.current;
-    const plan = planReminders(pet, now, { bedtime, wake, gentle });
+    const { bedtime, wake, gentle, style } = settings.current;
+    if (style === 'cozy') {
+      if (pet.stage === 'seedpod') return clearReminders();
+      const times = planInvitations(worldState.world, now, { bedtime, wake, gentle, style });
+      return scheduleReminders(
+        times.map((at) => ({ at, title: pet.name, body: t('remind.found', { name: pet.name }) })),
+        { name: t('remind.channel'), description: t('remind.channelHint') },
+      );
+    }
+    const plan = planReminders(pet, now, { bedtime, wake, gentle, style });
     await scheduleReminders(
       plan.map((r) => ({ at: r.at, title: pet.name, body: body(r.kinds, pet.name) })),
       { name: t('remind.channel'), description: t('remind.channelHint') },

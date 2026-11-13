@@ -39,6 +39,8 @@
   }
 
   onMount(next);
+  import PixelIcon from '../../pixel/PixelIcon.svelte';
+  import { spotArt } from '../../world/art/games-art';
 </script>
 
 <div class="game-head">
@@ -52,24 +54,7 @@
       {#if (phase === 'found' || phase === 'missed') && s === spot}
         <span class="peek"><Pet {stage} {form} expression={phase === 'found' ? 'happy' : 'surprised'} live={false} label="" /></span>
       {/if}
-      <svg viewBox="-30 -30 60 60" aria-hidden="true">
-        {#if s === 'cushion'}
-          <path d="M-26 6Q-28 -14 -10 -14H10Q28 -14 26 6Q28 22 10 22H-10Q-28 22 -26 6Z" class="thing" />
-          <path d="M-14 -4H14M-14 10H14" class="seam" />
-        {:else if s === 'basket'}
-          <path d="M-24 -6H24L18 22H-18Z" class="thing" />
-          <path d="M-18 -6Q0 -30 18 -6" class="seam" />
-          <path d="M-20 4H20M-19 13H19" class="seam" />
-        {:else if s === 'teapot'}
-          <ellipse cx="0" cy="6" rx="18" ry="15" class="thing" />
-          <path d="M16 0Q28 -4 26 -14M-18 2Q-28 4 -24 14" class="seam" />
-          <circle cx="0" cy="-11" r="4" class="thing" />
-        {:else}
-          <rect x="-24" y="-16" width="14" height="38" rx="2" class="thing" />
-          <rect x="-8" y="-22" width="14" height="44" rx="2" class="thing" />
-          <rect x="8" y="-12" width="16" height="34" rx="2" class="thing" transform="rotate(8 16 5)" />
-        {/if}
-      </svg>
+      <PixelIcon art={spotArt(s)} half={30} px={30} size={0} class="spot-art" />
     </button>
   {/each}
 </div>
@@ -122,16 +107,9 @@
     right: 15%;
     top: -40%;
   }
-  .thing {
-    fill: var(--pet-fur-shade);
-    stroke: var(--pet-outline);
-    stroke-width: 2;
-  }
-  .seam {
-    fill: none;
-    stroke: var(--pet-outline);
-    stroke-width: 2;
-    stroke-linecap: round;
+  .spot :global(.spot-art) {
+    width: 100%;
+    height: 100%;
   }
   @media (prefers-reduced-motion: reduce) {
     .spot.is-wrong {
