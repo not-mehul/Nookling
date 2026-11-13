@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Switch } from 'dusk-dawn';
+  import { Select, Switch, TimeField } from 'dusk-dawn';
   import type { ThemeSetting } from '../domain/settings';
-  import { t, type MessageKey } from '../i18n/index.svelte';
+  import { locale, t, type MessageKey } from '../i18n/index.svelte';
   import { eggsFound, siblingEgg, EGGS } from '../lib/delight';
   import { BACKUP_PREFIX, buildBackupZip, parseBackup, type BackupData } from '../lib/backup';
   import { datedName, isNative, saveFile } from '../platform/output';
@@ -17,6 +17,15 @@
   let newName = $derived(petState.pet?.name ?? '');
 
   let awayDays = $state(3);
+  const clockWords = $derived({
+    hour: t('time.hour'),
+    minute: t('time.minute'),
+    cancel: t('settings.cancel'),
+    choose: t('time.choose'),
+    close: t('action.close'),
+    empty: t('time.empty'),
+    plusMinutes: (count: number) => t('time.plusMinutes', { count }),
+  });
 
   async function setReminders(on: boolean) {
     settings.update({ reminders: on });
@@ -151,14 +160,8 @@
     </div>
     <p class="t-hint" id="styleHint">{t(`settings.style.${settings.current.style}Hint`)}</p>
     <div class="times">
-      <label class="field">
-        <span class="t-field-label">{t('settings.bedtime')}</span>
-        <input class="input" type="time" id="bedtimeInput" value={settings.current.bedtime} onchange={(e) => settings.update({ bedtime: e.currentTarget.value })} />
-      </label>
-      <label class="field">
-        <span class="t-field-label">{t('settings.wake')}</span>
-        <input class="input" type="time" id="wakeInput" value={settings.current.wake} onchange={(e) => settings.update({ wake: e.currentTarget.value })} />
-      </label>
+      <TimeField id="bedtimeInput" label={t('settings.bedtime')} value={settings.current.bedtime} locale={locale()} words={clockWords} onchange={(bedtime) => settings.update({ bedtime })} />
+      <TimeField id="wakeInput" label={t('settings.wake')} value={settings.current.wake} locale={locale()} words={clockWords} onchange={(wake) => settings.update({ wake })} />
     </div>
     <p class="t-hint">{t('settings.dayHint')}</p>
     {#if isNative && settings.current.reminders && reminders.permission === 'denied'}
@@ -186,12 +189,10 @@
         <button type="button" class="btn btn-secondary" id="btnComeBack" onclick={() => petState.comeBack()}>{t('care.comeBack', { name: pet.name })}</button>
       {:else}
         <p class="t-hint">{t('settings.awayHint', { name: pet.name })}</p>
-        <div class="rename">
+        <div class="away-row">
           <label class="field">
             <span class="t-field-label">{t('settings.awayDays')}</span>
-            <select class="select" id="awayDays" bind:value={awayDays}>
-              {#each [1, 2, 3, 5, 7, 10, 14] as d (d)}<option value={d}>{t('time.days', { count: d })}</option>{/each}
-            </select>
+            <Select id="awayDays" bind:value={awayDays} options={[1, 2, 3, 5, 7, 10, 14].map((d) => ({ value: d, label: t('time.days', { count: d }) }))} />
           </label>
           <button type="button" class="btn btn-muted" id="btnAway" onclick={leave}>{t('settings.awayStart')}</button>
         </div>
@@ -262,6 +263,17 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-3);
     align-items: end;
+  }
+  /* The length keeps its words whole; the button wraps under it at large text sizes. */
+  .away-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: end;
+  }
+  .away-row .field {
+    flex: 1 0 auto;
+    margin: 0;
   }
   .times {
     display: grid;

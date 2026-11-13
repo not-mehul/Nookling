@@ -145,7 +145,8 @@ test('gives food from the Pantry, drags food to the pet, and renames it', async 
 test('leaves the pet with a sitter and brings it home', async ({ page }) => {
   await hatch(page);
   await page.locator('#tabSettings').click();
-  await page.locator('#awayDays').selectOption('2');
+  await page.locator('#awayDays').click();
+  await page.getByRole('option', { name: '2 days' }).click();
   await page.locator('#btnAway').click();
   await page.locator('#tabNook').click();
   await expect(page.locator('#statusLine')).toHaveText('Pip is with the sitter, well looked after.');
