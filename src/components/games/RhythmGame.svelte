@@ -62,6 +62,8 @@
       window.removeEventListener('keydown', key);
     };
   });
+  import PixelIcon from '../../pixel/PixelIcon.svelte';
+  import { noteArt } from '../../world/art/games-art';
 </script>
 
 <div class="game-head">
@@ -71,7 +73,7 @@
 <div class="game-field lanes">
   <span class="beat-line" style:top="{LINE * 100}%" aria-hidden="true"></span>
   {#each notes as n (n.id)}
-    <span class="note" class:is-hit={n.hit} style:left="{((n.lane + 0.5) / RHYTHM_LANES) * 100}%" style:top="{n.y * 100}%" aria-hidden="true"></span>
+    <span class="note" class:is-hit={n.hit} style:left="{((n.lane + 0.5) / RHYTHM_LANES) * 100}%" style:top="{n.y * 100}%" aria-hidden="true"><PixelIcon art={noteArt(n.hit)} half={10} px={20} size={0} class="fill" /></span>
   {/each}
   {#each Array.from({ length: RHYTHM_LANES }, (_, i) => i) as lane (lane)}
     <button type="button" class="lane" class:is-flash={flash === lane} data-lane={lane} style:left="{(lane / RHYTHM_LANES) * 100}%" aria-label={t('game.rhythm.lane', { lane: lane + 1 })} onpointerdown={() => tap(lane)}></button>
@@ -106,13 +108,13 @@
     width: 14%;
     aspect-ratio: 1;
     translate: -50% -50%;
-    border-radius: 50%;
-    background: var(--pet-fur);
-    border: 1.5px solid var(--pet-outline);
     pointer-events: none;
   }
+  .note :global(.fill) {
+    width: 100%;
+    height: 100%;
+  }
   .note.is-hit {
-    background: var(--pet-cheek);
     scale: 1.3;
     opacity: 0.6;
   }

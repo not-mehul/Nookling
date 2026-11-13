@@ -2,7 +2,7 @@
 // date, as a PNG. Colours come from tokens, resolved at the moment the
 // picture is taken, so it matches the theme on screen.
 
-const PAINTED = ['fill', 'stroke', 'stop-color', 'opacity', 'fill-opacity', 'stroke-opacity', 'stroke-width', 'transform', 'transform-origin', 'display', 'visibility'] as const;
+const PAINTED = ['fill', 'stroke', 'stop-color', 'opacity', 'fill-opacity', 'stroke-opacity', 'stroke-width', 'transform', 'transform-origin', 'display', 'visibility', 'shape-rendering'] as const;
 
 /** A copy of the SVG with every computed paint written inline, so it draws the same off the page. */
 export function inlineSvg(svg: SVGSVGElement, size: number, height = size): string {

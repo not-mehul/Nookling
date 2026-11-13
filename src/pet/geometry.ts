@@ -10,8 +10,17 @@
  * lean a little, the same way every time, so the edge reads as fur rather
  * than a cookie cutter.
  */
-export function fluffPath(r: number, bumps: number, depth: number, ruffle = 0, rotate = -Math.PI / 2, cx = 0, cy = 0): string {
-  const at = (angle: number, radius: number) => `${round(cx + radius * Math.cos(angle))} ${round(cy + radius * Math.sin(angle))}`;
+export function fluffPath(
+  r: number,
+  bumps: number,
+  depth: number,
+  ruffle = 0,
+  rotate = -Math.PI / 2,
+  cx = 0,
+  cy = 0,
+): string {
+  const at = (angle: number, radius: number) =>
+    `${round(cx + radius * Math.cos(angle))} ${round(cy + radius * Math.sin(angle))}`;
   const step = (2 * Math.PI) / bumps;
   let d = `M${at(rotate, r)}`;
   for (let i = 0; i < bumps; i++) {
@@ -32,17 +41,27 @@ function noise(i: number): number {
 }
 
 /** An ellipse as a path, for clip paths and even-odd cut-outs. */
-export function ellipsePath(cx: number, cy: number, rx: number, ry: number): string {
+export function ellipsePath(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+): string {
   return `M${round(cx - rx)} ${round(cy)}a${rx} ${ry} 0 1 0 ${2 * rx} 0a${rx} ${ry} 0 1 0 ${-2 * rx} 0Z`;
 }
 
 /** A five-pointed star, for the Dreamer's companion. */
-export function starPath(cx: number, cy: number, outer: number, inner = outer * 0.48): string {
-  let d = '';
+export function starPath(
+  cx: number,
+  cy: number,
+  outer: number,
+  inner = outer * 0.48,
+): string {
+  let d = "";
   for (let i = 0; i < 10; i++) {
     const r = i % 2 ? inner : outer;
     const a = -Math.PI / 2 + (i * Math.PI) / 5;
-    d += `${i ? 'L' : 'M'}${round(cx + r * Math.cos(a))} ${round(cy + r * Math.sin(a))}`;
+    d += `${i ? "L" : "M"}${round(cx + r * Math.cos(a))} ${round(cy + r * Math.sin(a))}`;
   }
   return `${d}Z`;
 }
@@ -54,4 +73,11 @@ function round(n: number): number {
 /** The body. */
 export const BODY = { r: 71, bumps: 19, depth: 5.2, ruffle: 0.45 } as const;
 /** Where each eye sits, its size, and how far the pupil may travel. */
-export const EYE = { x: 29, y: -10, rx: 25, ry: 31, pupil: 15.5, reach: 7 } as const;
+export const EYE = {
+  x: 29,
+  y: -10,
+  rx: 25,
+  ry: 31,
+  pupil: 15.5,
+  reach: 7,
+} as const;

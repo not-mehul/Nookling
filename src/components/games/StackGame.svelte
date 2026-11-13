@@ -76,16 +76,21 @@
 <p class="t-hint">{t('game.stack.about')}</p>
 
 <style>
+  /* Pixel blocks: stepped corners, a lit top and a shaded base. */
   .pebble {
+    --c: var(--pet-fur-shade);
     position: absolute;
-    border-radius: 999px;
-    background: var(--pet-fur-shade);
-    border: 1px solid var(--border-soft);
+    background: var(--c);
+    clip-path: polygon(0 6px, 3px 6px, 3px 3px, 6px 3px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 3px, calc(100% - 3px) 3px, calc(100% - 3px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 3px) calc(100% - 6px), calc(100% - 3px) calc(100% - 3px), calc(100% - 6px) calc(100% - 3px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 3px), 3px calc(100% - 3px), 3px calc(100% - 6px), 0 calc(100% - 6px));
+    box-shadow:
+      inset 0 3px 0 color-mix(in oklab, var(--c) 58%, var(--pet-eye)),
+      inset 0 -4px 0 color-mix(in oklab, var(--c) 70%, var(--pet-mouth)),
+      inset 0 0 0 1.5px color-mix(in oklab, var(--c) 40%, var(--pet-pupil));
   }
   .pebble:nth-child(odd) {
-    background: var(--pet-fur-sage);
+    --c: var(--pet-fur-sage);
   }
   .pebble.is-moving {
-    background: var(--pet-fur-cream);
+    --c: var(--pet-fur-cream);
   }
 </style>

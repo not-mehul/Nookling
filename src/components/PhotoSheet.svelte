@@ -10,6 +10,8 @@
   import { petState } from '../state/pet.svelte';
   import { ui } from '../state/ui.svelte';
   import { worldState } from '../state/world.svelte';
+  import Pixels from '../pixel/Pixels.svelte';
+  import { BACKDROP_GRID, STICKER_GRID, backdropArt, stickerArt } from '../world/art/photo-art';
 
   let { name, stage, form, wear, onclose }: { name: string; stage: Stage; form: Form | null; wear: readonly Prop[]; onclose: () => void } = $props();
 
@@ -26,6 +28,7 @@
 
   let backdrop = $state<(typeof BACKDROPS)[number]>('plain');
   let pose = $state(POSES[0]!);
+  const backArt = $derived(backdropArt(backdrop));
   let stuck = $state<{ id: number; kind: Sticker; x: number; y: number; r: number }[]>([]);
   let back = $state<SVGSVGElement>();
   let rig = $state<ReturnType<typeof Pet>>();
@@ -58,33 +61,9 @@
 <Sheet title={t('photo.title')} {onclose}>
   <div class="studio" id="photoStudio">
     <svg bind:this={back} class="backdrop" viewBox="0 0 1080 1350" aria-hidden="true">
-      {#if backdrop === 'meadow'}
-        <rect class="sky-day" width="1080" height="1350" />
-        <path class="hill" d="M0 900Q300 760 600 860T1080 820V1350H0Z" />
-        <circle class="sun" cx="860" cy="220" r="90" />
-        {#each [[160, 1040], [420, 1120], [760, 1060], [940, 1180]] as [x, y] (`${x}`)}<circle class="flower" cx={x} cy={y} r="18" />{/each}
-      {:else if backdrop === 'night'}
-        <rect class="sky-night" width="1080" height="1350" />
-        {#each Array.from({ length: 30 }, (_, i) => i) as i (i)}<circle class="star" cx={(i * 317) % 1080} cy={(i * 211) % 900} r={3 + (i % 3) * 2} />{/each}
-        <circle class="moon" cx="220" cy="220" r="80" />
-      {:else if backdrop === 'beach'}
-        <rect class="sky-day" width="1080" height="1350" />
-        <rect class="sea" y="760" width="1080" height="200" />
-        <path class="sand" d="M0 940Q540 880 1080 940V1350H0Z" />
-        <circle class="sun" cx="200" cy="260" r="90" />
-      {:else if backdrop === 'snow'}
-        <rect class="sky-snow" width="1080" height="1350" />
-        <path class="drift" d="M0 960Q360 880 700 960T1080 940V1350H0Z" />
-        {#each Array.from({ length: 36 }, (_, i) => i) as i (i)}<circle class="flake" cx={(i * 293) % 1080} cy={(i * 157) % 1000} r={5 + (i % 4) * 2} />{/each}
-      {/if}
+      {#if backArt}<Pixels art={backArt} grid={BACKDROP_GRID} />{/if}
       {#each stuck as s (s.id)}
-        <g transform="translate({s.x} {s.y}) rotate({s.r}) scale(3)" class="sticker">
-          {#if s.kind === 'heart'}<path class="berry" d="M0 12C-22 -2 -16 -18 -6 -16Q0 -15 0 -8Q0 -15 6 -16C16 -18 22 -2 0 12Z" />
-          {:else if s.kind === 'star'}<path class="honey" d="M0 -16l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2Z" />
-          {:else if s.kind === 'sparkle'}<path class="cream" d="M0 -16Q2 -2 16 0Q2 2 0 16Q-2 2 -16 0Q-2 -2 0 -16Z" />
-          {:else if s.kind === 'leaf'}<path class="leaf" d="M-12 12Q-14 -10 12 -13Q13 9 -12 12Z" />
-          {:else}<path class="ink" d="M-4 10A5 5 0 1 1 -4 9V-14L10 -16V6A5 5 0 1 1 10 5V-9L-4 -7Z" />{/if}
-        </g>
+        <g transform="translate({s.x} {s.y}) scale(3)" class="sticker"><Pixels art={stickerArt(s.kind)} grid={STICKER_GRID} /></g>
       {/each}
     </svg>
     <div class="model">
@@ -143,53 +122,6 @@
     font-style: italic;
     font-size: 1.5rem;
     color: var(--text-heading);
-  }
-  .sky-day {
-    fill: var(--pet-fur-sage);
-    fill-opacity: 0.35;
-  }
-  .sky-night {
-    fill: var(--pet-pupil);
-  }
-  .sky-snow {
-    fill: var(--pet-fur-cream);
-    fill-opacity: 0.6;
-  }
-  .hill {
-    fill: var(--pet-food-leaf);
-    fill-opacity: 0.6;
-  }
-  .sun {
-    fill: var(--pet-food-honey);
-  }
-  .moon,
-  .star,
-  .flake,
-  .drift,
-  .cream {
-    fill: var(--pet-fur-cream);
-  }
-  .flower,
-  .berry {
-    fill: var(--pet-food-berry);
-  }
-  .sea {
-    fill: var(--pet-fur-sage);
-  }
-  .sand,
-  .honey {
-    fill: var(--pet-food-honey);
-  }
-  .leaf {
-    fill: var(--pet-food-leaf);
-  }
-  .ink {
-    fill: var(--pet-outline);
-  }
-  .sticker path {
-    stroke: var(--pet-outline);
-    stroke-width: 1.4;
-    stroke-linejoin: round;
   }
   h3 {
     margin: var(--space-3) 0 var(--space-2);

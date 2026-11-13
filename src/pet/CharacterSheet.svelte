@@ -5,6 +5,9 @@
   import type { Prop } from './types';
   const PROPS: Prop[] = ['mise', 'bookshelf', 'waymark', 'ledger', 'colophon', 'rosetta', 'cake'];
   import { EXPRESSIONS, FORMS, type Expression, type Form, type Stage } from './types';
+  import { CLOTHES } from '../world/wardrobe';
+  import type { MomentProp } from '../world/moments';
+  const MOMENT_PROPS: MomentProp[] = ['moth', 'teacup', 'book', 'dandelion', 'ladybug', 'leaves', 'puddle', 'yarn', 'bubbles', 'sunbeam', 'blanket', 'cloud', 'snow', 'flower', 'mirror', 'music'];
 
   const STAGES: { stage: Stage; name: string }[] = [
     { stage: 'seedpod', name: 'Seedpod' },
@@ -67,6 +70,28 @@
         <figure>
           <Pet stage="grown" {form} expression="happy" glow={0.8} live={false} label={NAMES[form]} />
           <figcaption>{NAMES[form]}</figcaption>
+        </figure>
+      {/each}
+    </div>
+  </section>
+  <section class="panel">
+    <h2 class="t-section-heading">Wardrobe</h2>
+    <div class="grid">
+      {#each CLOTHES as c (c.id)}
+        <figure>
+          <Pet expression="content" outfit={{ [c.slot]: c.id }} live={false} label={c.id} />
+          <figcaption>{c.id.replace('-', ' ')}</figcaption>
+        </figure>
+      {/each}
+    </div>
+  </section>
+  <section class="panel">
+    <h2 class="t-section-heading">Little moments</h2>
+    <div class="grid">
+      {#each MOMENT_PROPS as m (m)}
+        <figure>
+          <Pet expression={m === 'blanket' || m === 'cloud' ? 'asleep' : 'happy'} moment={m} live={false} label={m} />
+          <figcaption>{m}</figcaption>
         </figure>
       {/each}
     </div>

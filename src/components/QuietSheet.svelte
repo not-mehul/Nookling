@@ -13,6 +13,8 @@
   import { STORY_WORDS, tell, type StoryPart, type StoryPick } from '../world/story';
   import { seasonAt } from '../world/treasures';
   import { BREATHE_IN_MS, BREATHE_OUT_MS, skyAt, soundFor, weatherAt } from '../world/weather';
+  import Pixels from '../pixel/Pixels.svelte';
+  import { WINDOW_GRID, weatherArt, windowArt } from '../world/art/window-art';
 
   let { name, stage, form, onclose }: { name: string; stage: Stage; form: Form | null; onclose: () => void } = $props();
   type Mode = 'window' | 'breathe' | 'story';
@@ -21,6 +23,7 @@
   const sky = skyAt(now);
   const weather = weatherAt(now);
   const season = seasonAt(now);
+  const fallArt = weatherArt(weather);
   const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ── Sound
@@ -95,31 +98,11 @@
   {#if mode === 'window'}
     <div class="window" data-sky={sky} data-weather={weather} id="quietWindow">
       <svg viewBox="0 0 300 220" role="img" aria-label={t('quiet.view', { sky: t(`sky.${sky}` as MessageKey), weather: t(`weather.${weather}` as MessageKey) })}>
-        <rect class="sky" x="20" y="14" width="260" height="176" rx="6" />
-        {#if sky === 'night'}
-          {#each [[60, 40], [120, 62], [200, 36], [240, 80], [90, 100], [170, 90]] as [x, y] (`${x}${y}`)}<circle class="star" cx={x} cy={y} r="1.8" />{/each}
-          <circle class="moon" cx="226" cy="54" r="16" />
-        {:else}
-          <circle class="sun" cx={sky === 'dawn' ? 70 : sky === 'dusk' ? 230 : 210} cy={sky === 'day' ? 50 : 140} r="20" />
+        <defs><clipPath id="quietPane"><rect x="20" y="14" width="260" height="176" /></clipPath></defs>
+        <Pixels art={windowArt(sky, season, weather)} grid={WINDOW_GRID} />
+        {#if fallArt}
+          <g clip-path="url(#quietPane)"><g class="fall fall-{weather}"><Pixels art={fallArt} grid={WINDOW_GRID} /></g></g>
         {/if}
-        <path class="hill" d="M20 160Q90 120 160 150Q220 170 280 140V190H20Z" />
-        {#if season !== 'winter'}
-          <path class="trunk" d="M70 150V126M232 150V130" />
-          <path class="tree tree-{season}" d="M70 128m-14 0a14 18 0 1 0 28 0a14 18 0 1 0 -28 0M232 130m-10 0a10 13 0 1 0 20 0a10 13 0 1 0 -20 0" />
-        {/if}
-        {#if season === 'winter'}<path class="snowcap" d="M20 160Q90 120 160 150Q220 170 280 140V150Q220 178 160 158Q90 130 20 168Z" />{/if}
-        {#if weather === 'cloudy' || weather === 'rain'}
-          <g class="clouds"><ellipse cx="90" cy="54" rx="40" ry="14" /><ellipse cx="200" cy="70" rx="46" ry="16" /></g>
-        {/if}
-        {#if weather === 'rain'}
-          <g class="rain">{#each Array.from({ length: 24 }, (_, i) => i) as i (i)}<path d="M{30 + ((i * 37) % 250)} {20 + ((i * 53) % 150)}l-4 12" />{/each}</g>
-        {:else if weather === 'snow'}
-          <g class="snow">{#each Array.from({ length: 24 }, (_, i) => i) as i (i)}<circle cx={30 + ((i * 37) % 250)} cy={20 + ((i * 53) % 150)} r="2" />{/each}</g>
-        {:else if weather === 'mist'}
-          <g class="mist"><rect x="20" y="110" width="260" height="20" /><rect x="20" y="140" width="260" height="26" /></g>
-        {/if}
-        <path class="frame" d="M20 14H280V190H20ZM150 14V190M20 102H280" />
-        <rect class="sill" x="8" y="188" width="284" height="14" rx="4" />
       </svg>
       <div class="sitter"><Pet {stage} {form} expression={face} label="" /></div>
     </div>
@@ -165,67 +148,12 @@
     display: block;
     width: 100%;
   }
-  .sky {
-    fill: var(--pet-fur-sage);
-    opacity: 0.55;
+  .fall {
+    animation: fall 0.9s steps(4, end) infinite;
   }
-  [data-sky='dawn'] .sky {
-    fill: var(--pet-food-honey);
-    opacity: 0.45;
-  }
-  [data-sky='dusk'] .sky {
-    fill: var(--pet-fur-rust);
-    opacity: 0.5;
-  }
-  [data-sky='night'] .sky {
-    fill: var(--pet-pupil);
-    opacity: 0.9;
-  }
-  .sun {
-    fill: var(--pet-food-honey);
-  }
-  .moon,
-  .star {
-    fill: var(--pet-fur-cream);
-  }
-  .hill {
-    fill: var(--pet-food-leaf);
-    opacity: 0.7;
-  }
-  .snowcap {
-    fill: var(--pet-fur-cream);
-  }
-  .trunk {
-    stroke: var(--pet-food-crust);
-    stroke-width: 4;
-  }
-  .tree {
-    fill: var(--pet-food-leaf);
-  }
-  .tree-autumn {
-    fill: var(--pet-fur-rust);
-  }
-  .tree-spring {
-    fill: var(--pet-food-berry);
-    fill-opacity: 0.7;
-  }
-  .clouds ellipse {
-    fill: var(--pet-fur-cream);
-    opacity: 0.85;
-  }
-  .rain path {
-    stroke: var(--pet-fur-cream);
-    stroke-width: 1.5;
-    stroke-linecap: round;
-    animation: fall 0.9s linear infinite;
-  }
-  .snow circle {
-    fill: var(--pet-fur-cream);
-    animation: fall 5s linear infinite;
-  }
-  .mist rect {
-    fill: var(--pet-fur-cream);
-    opacity: 0.35;
+  .fall-snow {
+    animation-duration: 5s;
+    animation-timing-function: steps(10, end);
   }
   @keyframes fall {
     from {
@@ -235,14 +163,10 @@
       translate: 0 12px;
     }
   }
-  .frame {
-    fill: none;
-    stroke: var(--pet-food-crust);
-    stroke-width: 7;
-    stroke-linejoin: round;
-  }
-  .sill {
-    fill: var(--pet-food-crust);
+  @media (prefers-reduced-motion: reduce) {
+    .fall {
+      animation: none;
+    }
   }
   .sitter {
     position: absolute;
@@ -312,11 +236,5 @@
   #btnListen,
   #btnBreathe {
     margin-top: var(--space-3);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .rain path,
-    .snow circle {
-      animation: none;
-    }
   }
 </style>

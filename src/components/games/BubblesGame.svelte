@@ -53,6 +53,8 @@
       }
     });
   });
+  import PixelIcon from '../../pixel/PixelIcon.svelte';
+  import { BUBBLE_ART } from '../../world/art/games-art';
 </script>
 
 <div class="game-head">
@@ -70,8 +72,7 @@
       style:top="{b.y * 100}%"
       style:width="{b.r * 200}%"
       aria-label={t('game.popOne')}
-      onpointerdown={() => pop(b)}
-    ></button>
+      onpointerdown={() => pop(b)}><PixelIcon art={BUBBLE_ART} half={10} px={20} size={0} class="fill" /></button>
   {/each}
 </div>
 <p class="t-hint">{t('game.bubbles.about')}</p>
@@ -89,13 +90,16 @@
     aspect-ratio: 1;
     translate: -50% -50%;
     padding: 0;
-    border-radius: 50%;
-    background: radial-gradient(circle at 32% 30%, var(--pet-eye) 0 12%, transparent 13%), rgba(var(--pet-glow-rgb), 0.18);
-    border: 1.5px solid var(--pet-outline);
+    background: none;
+    border: 0;
     cursor: pointer;
     transition:
-      scale 160ms ease-out,
-      opacity 160ms ease-out;
+      scale 160ms steps(3, end),
+      opacity 160ms steps(3, end);
+  }
+  .bubble :global(.fill) {
+    width: 100%;
+    height: 100%;
   }
   .bubble.is-popped {
     scale: 1.5;

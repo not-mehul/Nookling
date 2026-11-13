@@ -69,6 +69,8 @@
     field?.focus();
     return () => cancelAnimationFrame(frame);
   });
+  import PixelIcon from '../../pixel/PixelIcon.svelte';
+  import { BERRY_ART } from '../../world/art/games-art';
 </script>
 
 <div class="game-head">
@@ -77,7 +79,7 @@
 </div>
 <div class="field" bind:this={field} tabindex="0" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(petX * 100)} aria-label={t('game.catchHelp')} onpointermove={aim} onpointerdown={aim} onkeydown={key}>
   {#each berries as b (b.id)}
-    <span class="berry" style:left="{b.x * 100}%" style:top="{b.y * 100}%" aria-hidden="true"></span>
+    <span class="berry" style:left="{b.x * 100}%" style:top="{b.y * 100}%" aria-hidden="true"><PixelIcon art={BERRY_ART} half={10} px={20} size={24} /></span>
   {/each}
   <div class="catcher" style:left="{petX * 100}%">
     <Pet {stage} {form} expression={happy ? 'eating' : 'happy'} live={false} label={t('game.catchHelp')} />
@@ -104,12 +106,9 @@
   }
   .berry {
     position: absolute;
-    width: 18px;
-    height: 18px;
-    margin-left: -9px;
-    border-radius: 50%;
-    background: var(--pet-food-berry);
-    border: 1.5px solid var(--pet-outline);
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
   }
   .catcher {
     position: absolute;

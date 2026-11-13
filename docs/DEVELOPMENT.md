@@ -9,8 +9,8 @@ Nookling is built like its siblings, and Mise in particular: Svelte 5 and TypeSc
 | `npm run dev` | The app in a browser at http://localhost:5173 |
 | `npm run check` | Contrast (`dusk-dawn check`), ESLint, no literal colours (`dusk-dawn colours`), `svelte-check`, Vitest |
 | `npm run test:e2e` | A production build, then the Playwright tests at phone size, with axe in both themes |
-| `npm run sheet` | Renders the pet's character sheet (`sheet.html`) in both themes to `docs/character-sheet-*.png` |
-| `npm run icons` | Renders every launcher icon from `assets/icon-source.svg` |
+| `npm run sheet` | Renders the pet's character sheet (`sheet.html`) and the art sheet (`art.html`) in both themes to `docs/character-sheet-*.png` and `docs/art-sheet-*.png` |
+| `npm run icons` | Renders every launcher icon from `assets/icon-source.svg` (redraw that, and `public/favicon.svg`, with `node scripts/pixel-mark.mjs`) |
 | `npm run sync` / `android` | Build and copy into the Android project / and open Android Studio |
 
 If Playwright can't find its browser, point it at one with `PLAYWRIGHT_CHROMIUM_PATH`.
@@ -30,11 +30,19 @@ If Playwright can't find its browser, point it at one with `PLAYWRIGHT_CHROMIUM_
 
 ## The pet
 
-`src/pet/Pet.svelte` is the whole creature: one inline SVG rig (fluff, eyes, pupils, lids, mouth, cheeks, glow) whose colours are all dusk-dawn `--pet-*` tokens, so it follows the theme with no redraw. Its shapes come from `src/pet/geometry.ts`. It takes a stage, a form, an expression, where it looks, its glow, how grubby it is and whether it is unwell, and `react()` plays one-off movements (hop, squish, wiggle and the rest) on the Web Animations API.
+`src/pet/Pet.svelte` is the whole creature, drawn as high-resolution pixel art: a 96 × 96 sprite (`src/pet/sprite.ts`) whose colours are all dusk-dawn tokens, so it follows the theme with no redraw. Its shapes come from `src/pet/geometry.ts`; pupils step in whole pixels, a blink redraws the eyes shut, and the breath steps rather than glides. It takes a stage, a form, an expression, where it looks, its glow, how grubby it is and whether it is unwell, and `react()` plays one-off movements (hop, squish, wiggle and the rest) on the Web Animations API.
 
 It breathes and blinks only while it is on screen and the page is visible, and holds still under reduced motion (style.md §11.2, the living-subject rule).
 
 ![The character sheet in Dusk](character-sheet-dusk.png)
+
+## Pixel art
+
+Every picture in the app (the pet, its clothes, foods, treasures, decor, the garden, visitors, the window, photo backdrops and stickers, and the games) is pixel art from one renderer, `src/pixel/raster.ts`. A drawing is a list of layers of simple shapes (SVG path data, ellipses, rects, strokes) in token colours, described with the helpers in `src/pixel/kit.ts`. The renderer samples them onto a grid of square pixels and finishes them the way a pixel artist would: a dark selective outline, shade on the side away from the light (top left), a highlight, and checkerboard dither between tones. Shades and highlights are `color-mix()` of the layer's token with another token, so nothing is a literal colour. Out comes one SVG path per colour, drawn with crisp edges (`src/pixel/Pixels.svelte`, `PixelIcon.svelte`), cached by description.
+
+The art itself lives beside what it draws: `src/pet/sprite.ts` and `clothes.ts`, and `src/world/art/*-art.ts`. `art.html` shows every piece on one page.
+
+![The art sheet in Dusk](art-sheet-dusk.png)
 
 ## Links between the apps
 

@@ -26,46 +26,49 @@
     overflow: hidden;
     pointer-events: none;
   }
+  /* Each bit is a few square pixels (a stepped clip-path), and it falls in
+     whole steps, so it reads as part of the pixel world. */
   .bit {
     position: absolute;
     top: -6%;
-    width: 9px;
-    height: 9px;
-    opacity: 0.7;
-    animation: drift linear infinite;
+    width: 12px;
+    height: 12px;
+    opacity: 0.8;
+    animation: drift steps(60, end) infinite;
   }
   .season-spring .bit {
-    border-radius: 60% 0;
     background: var(--pet-food-berry);
-    opacity: 0.45;
+    opacity: 0.55;
+    clip-path: polygon(33% 0, 100% 0, 100% 67%, 67% 67%, 67% 100%, 0 100%, 0 33%, 33% 33%);
   }
   .season-autumn .bit {
-    border-radius: 0 70%;
     background: var(--pet-fur-rust);
+    clip-path: polygon(0 0, 67% 0, 67% 33%, 100% 33%, 100% 100%, 33% 100%, 33% 67%, 0 67%);
   }
   .season-autumn .bit:nth-child(even) {
     background: var(--pet-food-honey);
   }
   .season-winter .bit {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+    width: 9px;
+    height: 9px;
     background: var(--pet-fur-cream);
-    box-shadow: 0 0 0 1px rgba(var(--shadow-rgb), 0.15);
+    clip-path: polygon(33% 0, 67% 0, 67% 33%, 100% 33%, 100% 67%, 67% 67%, 67% 100%, 33% 100%, 33% 67%, 0 67%, 0 33%, 33% 33%);
   }
   .season-summer .bit {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
+    width: 6px;
+    height: 6px;
     background: var(--pet-food-honey);
-    box-shadow: 0 0 8px 2px rgba(var(--pet-glow-rgb), 0.8);
+    box-shadow:
+      0 0 0 3px rgba(var(--pet-glow-rgb), 0.35),
+      0 0 0 6px rgba(var(--pet-glow-rgb), 0.15);
     animation-name: float;
+    animation-timing-function: steps(12, end);
     top: 60%;
   }
   @keyframes drift {
     to {
       translate: 30px 115cqh;
-      rotate: 220deg;
+      rotate: 180deg;
     }
   }
   @keyframes float {

@@ -59,7 +59,7 @@
             {/each}
           </div>
         {:else}
-          <span class="soil" aria-hidden="true"></span>
+          <PlantArt seed={null} stage="seed" />
           <button type="button" class="btn btn-muted" data-sow={i} onclick={() => (choosing = i)}>{t('garden.plant')}</button>
         {/if}
       </li>
@@ -94,14 +94,6 @@
     letter-spacing: 0.04em;
     justify-content: center;
     font-size: 0.8125rem;
-  }
-  .soil {
-    width: 70%;
-    height: 14px;
-    margin-bottom: var(--space-2);
-    border-radius: 50%;
-    background: var(--pet-food-crust);
-    opacity: 0.6;
   }
   .name {
     font-size: 0.8125rem;

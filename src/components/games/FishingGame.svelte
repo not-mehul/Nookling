@@ -44,6 +44,9 @@
     }, BITE_MS);
   }
   $effect(() => () => clearTimeout(timer));
+  import Pixels from '../../pixel/Pixels.svelte';
+  import { FISHING_LINE, FLOAT_ART, pondArt } from '../../world/art/games-art';
+  const POND = { x: 0, y: 0, w: 100, h: 132.5, u: 1.25 };
 </script>
 
 <div class="game-head">
@@ -52,13 +55,9 @@
 </div>
 <button type="button" class="game-field pond" id="fishingField" data-phase={phase} onclick={tap} aria-label={t(`game.fishing.${phase}` as MessageKey)}>
   <svg viewBox="0 0 100 133" aria-hidden="true">
-    <ellipse cx="50" cy="92" rx="44" ry="20" class="water" />
-    <ellipse cx="50" cy="92" rx="30" ry="12" class="ripple" />
-    <path d="M22 30Q52 10 64 86" class="line" />
-    <g class="float" class:is-under={phase === 'bite'} class:is-bob={phase === 'waiting'}>
-      <circle cx="64" cy="86" r="4" class="float-top" />
-      <path d="M60 87H68" class="line" />
-    </g>
+    <Pixels art={pondArt()} grid={POND} />
+    <Pixels art={FISHING_LINE} grid={POND} />
+    <g class="float" class:is-under={phase === 'bite'} class:is-bob={phase === 'waiting'}><Pixels art={FLOAT_ART} grid={POND} /></g>
   </svg>
   <span class="fisher"><Pet {stage} {form} expression={phase === 'caught' ? 'happy' : phase === 'bite' ? 'surprised' : 'content'} live={false} label="" /></span>
 </button>
@@ -81,35 +80,18 @@
     width: 100%;
     height: 100%;
   }
-  .water {
-    fill: rgba(var(--pet-glow-rgb), 0.14);
-    stroke: var(--border-soft);
-  }
-  .ripple {
-    fill: none;
-    stroke: var(--border-soft);
-    stroke-dasharray: 3 4;
-  }
-  .line {
-    fill: none;
-    stroke: var(--text-faint);
-    stroke-width: 0.6;
-  }
-  .float-top {
-    fill: var(--pet-food-berry);
-  }
   .float {
     transition: translate 120ms ease-out;
   }
   .float.is-under {
-    translate: 0 4px;
+    translate: 0 5px;
   }
   .float.is-bob {
-    animation: bob 1.6s ease-in-out infinite;
+    animation: bob 1.6s steps(1, end) infinite;
   }
   @keyframes bob {
     50% {
-      translate: 0 1px;
+      translate: 0 2.5px;
     }
   }
   .fisher {
