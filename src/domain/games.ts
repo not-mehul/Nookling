@@ -6,6 +6,12 @@ export const GAMES: readonly Game[] = ['catch', 'bubbles', 'keepup', 'match', 'f
 /** Played inside 30 to 90 seconds, so each fits a spare minute. */
 export const QUICK: ReadonlySet<Game> = new Set(['catch', 'bubbles', 'keepup', 'fishing', 'stack', 'rhythm']);
 
+/**
+ * Calm play: no clock, things move at half speed, and nothing is lost by a
+ * miss. Timed games end when you say; the others never rush you anyway.
+ */
+export const CALM_PACE = 0.5;
+
 /** One game a day is featured: a little extra fun, and nothing lost by skipping it. */
 export function gameOfDay(now: number): Game {
   const d = new Date(now);
@@ -56,9 +62,9 @@ export function overlap(x: number, w: number, bx: number, bw: number): { x: numb
 export const RHYTHM_MS = 30_000;
 export const RHYTHM_LANES = 3;
 export const RHYTHM_WINDOW = 0.07;
-/** Whether a note at `y` (0 top, 1 bottom) is close enough to the line at `line`. */
-export function onBeat(y: number, line = 0.85): boolean {
-  return Math.abs(y - line) <= RHYTHM_WINDOW;
+/** Whether a note at `y` (0 top, 1 bottom) is close enough to the line at `line`; calm play widens the window. */
+export function onBeat(y: number, line = 0.85, widen = 1): boolean {
+  return Math.abs(y - line) <= RHYTHM_WINDOW * widen;
 }
 
 // ── Catch: berries fall; the pet catches them in its mouth.

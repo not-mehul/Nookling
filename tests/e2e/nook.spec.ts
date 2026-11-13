@@ -312,3 +312,62 @@ test('a visitor drops by, and a favour brings a find', async ({ page }) => {
   await page.locator('#tabJournal').click();
   await expect(page.locator('#journalVisitors')).toContainText('Bramble the snail');
 });
+
+test('calm play: no clock, a miss costs nothing, and you stop when you like', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#btnPlay').click();
+  await page.locator('#switchCalmPlay').click();
+  await expect(page.locator('[data-game="bubbles"]')).toContainText('Calm: no clock');
+  await page.locator('[data-game="stack"]').click();
+  const field = page.locator('#stackField');
+  await field.focus();
+  // The first pebble starts at the far left and misses: in calm play it just slides round again.
+  await page.keyboard.press('Enter');
+  await expect(field).toBeVisible();
+  await page.locator('#calmDone').click();
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip had a lovely time.', { timeout: 10_000 });
+
+  await page.locator('#btnPlay').click();
+  await page.locator('[data-game="bubbles"]').click();
+  await expect(page.locator('.game-head')).not.toContainText(/\ds$/);
+  await page.locator('#calmDone').click();
+  await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip had a lovely time.', { timeout: 10_000 });
+});
+
+test('the fidget has buttons for squish, stretch and the shake wobble', async ({ page }) => {
+  await hatch(page);
+  await page.locator('#btnFidget').click();
+  await page.locator('#btnStretch').click();
+  await expect(page.locator('.t-hint[aria-live="polite"]')).toHaveText('1 boing');
+  await page.locator('#btnSquish').click();
+  await page.locator('#btnWobble').click();
+  await expect(page.locator('.t-hint[aria-live="polite"]')).toHaveText('2 boings');
+});
+
+test('every tab and the arcade fit with text at 200%', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await hatch(page);
+  await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+  const fits = async (where: string) => {
+    await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
+    const over = await page.evaluate(() => {
+      const width = document.documentElement.clientWidth;
+      return [...document.querySelectorAll('button, a, h1, h2, h3, p, span, input, select, label')]
+        .filter((el) => {
+          // Toasts slide in from the side, so they're left out.
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.right > width + 1 && r.left < width && !el.closest('.game-field, .fidget, .nook-scene, .toast-region, [aria-hidden="true"]');
+        })
+        .map((el) => `${el.tagName.toLowerCase()}#${el.id}.${[...el.classList].join('.')} "${(el.textContent ?? '').trim().slice(0, 30)}"`);
+    });
+    expect(over, where).toEqual([]);
+  };
+  await fits('nook');
+  await page.locator('#btnPlay').click();
+  await fits('arcade');
+  await page.keyboard.press('Escape');
+  for (const tab of ['#tabPantry', '#tabJournal', '#tabSettings']) {
+    await page.locator(tab).click();
+    await fits(tab);
+  }
+});

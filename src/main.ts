@@ -5,6 +5,7 @@
 import { App as CapacitorApp } from '@capacitor/app';
 import { mount } from 'svelte';
 import App from './App.svelte';
+import { backUpQuietlyIfDue } from './state/backup';
 import { listenForLinks } from './platform/incoming';
 import { isNative } from './platform/output';
 import { applyTheme } from './platform/theme.svelte';
@@ -22,7 +23,9 @@ function start(): void {
   // Apply the theme before the first paint; App.svelte keeps it in sync afterwards.
   applyTheme(settings.current.theme);
   mount(App, { target: document.getElementById('app')! });
-  void petState.init().then(() => worldState.init());
+  void petState.init()
+    .then(() => worldState.init())
+    .then(() => backUpQuietlyIfDue());
 
   if (isNative) {
     // Android back: close the topmost overlay, then return to the Nook, then exit (style.md §14).
@@ -34,6 +37,7 @@ function start(): void {
       void petState.refresh(Date.now());
       void reminders.clear();
       void reminders.check();
+      void backUpQuietlyIfDue();
     });
     // Leaving: hand the next two days of reminders to the phone (src/domain/reminders.ts).
     // And the home-screen widget gets a fresh picture.

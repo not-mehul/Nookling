@@ -137,3 +137,9 @@ fieldset {
   min-height: 1.6em;
   margin: var(--space-3) 0;
 }
+
+/* With large text (200%), buttons wrap their words and stay inside the screen. */
+.btn {
+  max-width: 100%;
+  white-space: normal;
+}

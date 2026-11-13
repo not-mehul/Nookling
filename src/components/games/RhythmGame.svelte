@@ -1,12 +1,12 @@
 <script lang="ts">
   // Rhythm: notes fall down three lanes. Tap a lane as its note crosses the line.
   import { onMount } from 'svelte';
-  import { RHYTHM_LANES, RHYTHM_MS, onBeat } from '../../domain/games';
+  import { CALM_PACE, RHYTHM_LANES, RHYTHM_MS, onBeat } from '../../domain/games';
   import { t } from '../../i18n/index.svelte';
   import { chirp, note } from '../../platform/sound';
   import { loop } from './loop';
 
-  let { onfinish }: { onfinish: (hits: number, total: number) => void } = $props();
+  let { calm = false, onfinish }: { calm?: boolean; onfinish: (hits: number, total: number) => void } = $props();
   interface Note {
     id: number;
     lane: number;
@@ -20,8 +20,14 @@
   let left = $state(RHYTHM_MS);
   let flash = $state<number | null>(null);
 
+  /** Calm play ends when you say. */
+  function enough() {
+    left = 0;
+    notes = [];
+  }
+
   function tap(lane: number) {
-    const target = notes.find((n) => n.lane === lane && !n.hit && onBeat(n.y, LINE));
+    const target = notes.find((n) => n.lane === lane && !n.hit && onBeat(n.y, LINE, calm ? 2 : 1));
     flash = lane;
     setTimeout(() => (flash = null), 120);
     if (target) {
@@ -43,14 +49,14 @@
     let beat = 0;
     window.addEventListener('keydown', key);
     const stop = loop((dt) => {
-      left = Math.max(0, left - dt);
+      if (!calm) left = Math.max(0, left - dt);
       beat -= dt;
       if (beat <= 0 && left > 2500) {
         total += 1;
         notes.push({ id: ++id, lane: Math.floor(Math.random() * RHYTHM_LANES), y: -0.05, hit: false });
-        beat = [500, 750, 1000][Math.floor(Math.random() * 3)]!;
+        beat = [500, 750, 1000][Math.floor(Math.random() * 3)]! / (calm ? CALM_PACE : 1);
       }
-      for (const n of notes) n.y += 0.0004 * dt;
+      for (const n of notes) n.y += 0.0004 * dt * (calm ? CALM_PACE : 1);
       notes = notes.filter((n) => n.y < 1.05 && !(n.hit && n.y > LINE + 0.1));
       if (left <= 0 && notes.length === 0) {
         onfinish(hits, Math.max(1, total));
@@ -68,7 +74,7 @@
 
 <div class="game-head">
   <span class="t-data">{t('game.onBeat', { hits })}</span>
-  <span class="t-data">{Math.ceil(left / 1000)}s</span>
+  {#if calm}<button type="button" class="btn btn-muted calm-done" id="calmDone" onclick={enough}>{t('game.calmDone')}</button>{:else}<span class="t-data">{Math.ceil(left / 1000)}s</span>{/if}
 </div>
 <div class="game-field lanes">
   <span class="beat-line" style:top="{LINE * 100}%" aria-hidden="true"></span>

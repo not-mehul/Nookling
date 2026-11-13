@@ -22,6 +22,10 @@ export interface Settings {
   gentle: boolean;
   /** When the last backup was written (ISO time). */
   lastBackupAt?: string;
+  /** Games without a clock, at half speed, where a miss costs nothing. */
+  calmPlay: boolean;
+  /** On a phone, a copy is saved to Documents/Nookling once a week, quietly. */
+  autoBackup: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -33,6 +37,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: true,
   haptics: true,
   gentle: false,
+  autoBackup: true,
+  calmPlay: false,
 };
 
 const THEMES: readonly ThemeSetting[] = ['system', 'light', 'dark'];
@@ -47,7 +53,7 @@ export function clockMinutes(value: string): number {
 /** Settings read back from storage, with anything unknown replaced by the default. */
 export function normaliseSettings(value: unknown): Settings {
   const v = (value && typeof value === 'object' ? value : {}) as Partial<Record<keyof Settings, unknown>>;
-  const bool = (key: 'reminders' | 'sound' | 'haptics' | 'gentle') => (typeof v[key] === 'boolean' ? (v[key] as boolean) : DEFAULT_SETTINGS[key]);
+  const bool = (key: 'reminders' | 'sound' | 'haptics' | 'gentle' | 'autoBackup' | 'calmPlay') => (typeof v[key] === 'boolean' ? (v[key] as boolean) : DEFAULT_SETTINGS[key]);
   const clock = (key: 'bedtime' | 'wake') => (typeof v[key] === 'string' && CLOCK.test(v[key] as string) ? (v[key] as string) : DEFAULT_SETTINGS[key]);
   const settings: Settings = {
     theme: THEMES.includes(v.theme as ThemeSetting) ? (v.theme as ThemeSetting) : DEFAULT_SETTINGS.theme,
@@ -58,6 +64,8 @@ export function normaliseSettings(value: unknown): Settings {
     sound: bool('sound'),
     haptics: bool('haptics'),
     gentle: bool('gentle'),
+    autoBackup: bool('autoBackup'),
+    calmPlay: bool('calmPlay'),
   };
   // Bedtime and wake time must differ, or the pet would never (or always) sleep.
   if (settings.bedtime === settings.wake) settings.wake = settings.bedtime === DEFAULT_SETTINGS.wake ? DEFAULT_SETTINGS.bedtime : DEFAULT_SETTINGS.wake;

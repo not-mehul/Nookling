@@ -14,7 +14,9 @@
   import { GAMES, QUICK, gameOfDay, score, type Game } from '../domain/games';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import type { Form, Stage } from '../pet/types';
+  import { settings } from '../state/settings.svelte';
   import { worldState } from '../state/world.svelte';
+  import { Switch } from 'dusk-dawn';
   import { dayKey } from '../world/arcade';
 
   let { name, stage, form, onresult, onclose }: { name: string; stage: Stage; form: Form | null; onresult: (game: Game, score: number) => void; onclose: () => void } = $props();
@@ -23,6 +25,7 @@
   const daily = gameOfDay(now);
   const dailyDone = $derived(worldState.world.arcade.dailyOn === dayKey(now));
   const order = [daily, ...GAMES.filter((g) => g !== daily)];
+  const calm = $derived(settings.current.calmPlay);
 
   function finish(hits: number, total: number) {
     if (!game) return;
@@ -32,6 +35,9 @@
 
 <Sheet title={game ? t(`game.${game}` as MessageKey) : t('game.title', { name })} {onclose}>
   {#if !game}
+    <div class="calm-switch">
+      <Switch id="switchCalmPlay" checked={calm} label={t('game.calm')} hint={t('game.calmHint')} onchange={(on) => settings.update({ calmPlay: on })} />
+    </div>
     <ul class="games">
       {#each order as g (g)}
         {@const best = worldState.world.arcade.best[g]}
@@ -43,34 +49,37 @@
             </span>
             <span class="t-hint">{t(`game.${g}.about` as MessageKey)}</span>
             <span class="t-hint meta">
-              {QUICK.has(g) ? t('game.quick') : t('game.unhurried')}{#if best !== undefined}&nbsp;· {t('game.best', { stars: '★'.repeat(Math.round(best * 3)) || '·' })}{/if}
+              {calm && QUICK.has(g) ? t('game.calmMeta') : QUICK.has(g) ? t('game.quick') : t('game.unhurried')}{#if best !== undefined}&nbsp;· {t('game.best', { stars: '★'.repeat(Math.round(best * 3)) || '·' })}{/if}
             </span>
           </button>
         </li>
       {/each}
     </ul>
   {:else if game === 'catch'}
-    <CatchGame {stage} {form} onfinish={finish} />
+    <CatchGame {stage} {form} {calm} onfinish={finish} />
   {:else if game === 'seek'}
     <SeekGame {stage} {form} onfinish={finish} />
   {:else if game === 'echo'}
     <EchoGame {stage} {form} onfinish={finish} />
   {:else if game === 'bubbles'}
-    <BubblesGame {stage} {form} onfinish={finish} />
+    <BubblesGame {stage} {form} {calm} onfinish={finish} />
   {:else if game === 'keepup'}
-    <KeepUpGame {stage} {form} onfinish={finish} />
+    <KeepUpGame {stage} {form} {calm} onfinish={finish} />
   {:else if game === 'match'}
     <MatchGame onfinish={finish} />
   {:else if game === 'fishing'}
-    <FishingGame {stage} {form} onfinish={finish} />
+    <FishingGame {stage} {form} {calm} onfinish={finish} />
   {:else if game === 'stack'}
-    <StackGame onfinish={finish} />
+    <StackGame {calm} onfinish={finish} />
   {:else}
-    <RhythmGame onfinish={finish} />
+    <RhythmGame {calm} onfinish={finish} />
   {/if}
 </Sheet>
 
 <style>
+  .calm-switch {
+    margin-bottom: var(--space-3);
+  }
   .games {
     list-style: none;
     display: grid;

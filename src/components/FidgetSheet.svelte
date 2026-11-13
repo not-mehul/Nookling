@@ -1,6 +1,8 @@
 <script lang="ts">
   // Fidget: stretch it, squish it, let go and it springs back. Nothing to
   // win; it just feels nice. A press and hold squishes; a drag stretches.
+  // The buttons do the same for anyone who'd rather tap, and Wobble is the
+  // shake-the-phone wobble without shaking anything.
   import Sheet from './ui/Sheet.svelte';
   import { t } from '../i18n/index.svelte';
   import Pet from '../pet/Pet.svelte';
@@ -77,14 +79,29 @@
     face = 'happy';
     setTimeout(() => (face = 'content'), 700);
   }
-  function key(e: KeyboardEvent) {
-    const s: Record<string, [number, number]> = { ArrowUp: [0.85, 1.3], ArrowDown: [1.25, 0.72], ArrowLeft: [1.3, 0.85], ArrowRight: [1.3, 0.85] };
-    const v = s[e.key];
-    if (!v) return;
-    e.preventDefault();
+  const SHAPES: Record<string, [number, number]> = { ArrowUp: [0.85, 1.3], ArrowDown: [1.25, 0.72], ArrowLeft: [1.3, 0.85], ArrowRight: [1.3, 0.85] };
+  function shape(v: [number, number]) {
     from = { x: 0, y: 0 };
     [sx, sy] = v;
     setTimeout(up, 120);
+  }
+  function key(e: KeyboardEvent) {
+    const v = SHAPES[e.key];
+    if (!v) return;
+    e.preventDefault();
+    shape(v);
+  }
+  function wobble() {
+    face = 'dizzy';
+    chirp('giggle');
+    buzz('medium');
+    if (!reduced && blob?.animate) {
+      blob.animate(
+        [{ transform: 'none' }, { transform: 'rotate(-12deg)' }, { transform: 'rotate(10deg)' }, { transform: 'rotate(-8deg)' }, { transform: 'rotate(5deg)' }, { transform: 'none' }],
+        { duration: 900, easing: 'ease-out' },
+      );
+    }
+    setTimeout(() => (face = 'content'), 1400);
   }
 </script>
 
@@ -105,6 +122,11 @@
       <Pet {stage} {form} expression={face} label="" />
     </div>
   </div>
+  <div class="fidget-buttons">
+    <button type="button" class="btn btn-muted" id="btnSquish" onclick={() => shape(SHAPES.ArrowDown!)}>{t('fidget.squish')}</button>
+    <button type="button" class="btn btn-muted" id="btnStretch" onclick={() => shape(SHAPES.ArrowUp!)}>{t('fidget.stretch')}</button>
+    <button type="button" class="btn btn-muted" id="btnWobble" onclick={wobble}>{t('fidget.wobble')}</button>
+  </div>
   <p class="t-hint" aria-live="polite">{boings ? t('fidget.boings', { count: boings }) : t('fidget.hint')}</p>
 </Sheet>
 
@@ -121,6 +143,13 @@
     cursor: grab;
     border-radius: var(--corner-lg);
     background: var(--panel-bg-faint);
+  }
+  .fidget-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
   }
   .blob {
     width: 62%;
