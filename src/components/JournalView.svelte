@@ -1,9 +1,8 @@
 <script lang="ts">
   // The Journal: who it is, the moments it grew, its pictures and the care log.
-  import { GAMES, type Game } from '../domain/games';
+  import { logLine } from '../lib/logLine';
   import VisitorArt from '../world/art/VisitorArt.svelte';
   import { VISITORS } from '../world/visitors';
-  import { foodById } from '../domain/foods';
   import { DAY } from '../domain/pet';
   import { t, type MessageKey } from '../i18n/index.svelte';
   import { datedName, shareFile } from '../platform/output';
@@ -58,13 +57,7 @@
     return new Date(day).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
-  function line(e: LogEntry): string {
-    const key = `log.${e.kind}` as MessageKey;
-    if (e.kind === 'grew') return t('log.grew', { stage: t(`stage.${e.detail ?? 'nookling'}` as MessageKey) });
-    if (e.kind === 'fed') return t('log.fed', { detail: (foodById(e.detail ?? '')?.name ?? worldState.world.dishes.find((d) => d.id === e.detail)?.name ?? e.detail ?? '').toLowerCase() });
-    if (e.kind === 'played') return t('log.played', { detail: e.detail && (GAMES as readonly string[]).includes(e.detail) ? t(`game.${e.detail as Game}`).toLowerCase() : '' });
-    return t(key, { detail: e.detail ?? '' });
-  }
+  const line = (e: LogEntry) => logLine(e, worldState.world);
 
   async function share(p: Photo) {
     await shareFile({ name: datedName(`${name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'nookling'}`, 'png', new Date(p.at), true), data: new Uint8Array(await p.image.arrayBuffer()), mime: 'image/png' }, name);

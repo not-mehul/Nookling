@@ -18,12 +18,21 @@ async function hatch(page: Page, name = 'Pip') {
 
 test('adopts, hatches and cares for a nookling', async ({ page }) => {
   await hatch(page);
-  for (const need of ['fullness', 'energy', 'mood', 'tidiness']) await expect(page.locator(`#need-${need}`)).toBeVisible();
+  // Cozy, the default, shows the day's moments rather than a needs chart.
+  await expect(page.locator('#todayPanel')).toContainText('A quiet day so far.');
+  await expect(page.locator('#need-fullness')).toHaveCount(0);
 
   await page.locator('#btnFeed').click();
   await expect(page.locator('[data-food="acorn-bread"]')).toBeDisabled();
   await page.locator('[data-food="oat-cake"]').click();
   await expect(page.locator('.toast-region[role="status"]')).toContainText('Pip ate the oat cake.');
+  await expect(page.locator('#todayPanel')).toContainText('Ate oat cake.');
+
+  // Tamagotchi mode brings the meters back.
+  await page.locator('#tabSettings').click();
+  await page.locator('[data-style-option="tamagotchi"]').click();
+  await page.locator('#tabNook').click();
+  for (const need of ['fullness', 'energy', 'mood', 'tidiness']) await expect(page.locator(`#need-${need}`)).toBeVisible();
 
 });
 
@@ -88,7 +97,7 @@ test('keeps the pet across a reload', async ({ page }) => {
   await hatch(page, 'Bramble');
   await page.reload();
   await expect(page.locator('#statusLine')).toContainText('Bramble');
-  await expect(page.locator('#need-fullness')).toBeVisible();
+  await expect(page.locator('#todayPanel')).toBeVisible();
 });
 
 test('the Nook with a pet has no accessibility violations', async ({ page }) => {
@@ -131,7 +140,7 @@ test('leaves the pet with a sitter and brings it home', async ({ page }) => {
   await page.locator('#tabNook').click();
   await expect(page.locator('#statusLine')).toHaveText('Pip is with the sitter, well looked after.');
   await page.locator('#btnComeBackNook').click();
-  await expect(page.locator('#need-fullness')).toBeVisible();
+  await expect(page.locator('#todayPanel')).toBeVisible();
 });
 
 test('easter eggs: the Konami code, the title and a sibling’s name', async ({ page }) => {

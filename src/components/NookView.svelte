@@ -20,6 +20,7 @@
   import PhotoSheet from './PhotoSheet.svelte';
   import QuietSheet from './QuietSheet.svelte';
   import SeasonLayer from './SeasonLayer.svelte';
+  import TodayPanel from './TodayPanel.svelte';
   import VisitorArt from '../world/art/VisitorArt.svelte';
   import { DECOR } from '../world/decor';
   import { grownFoods } from '../world/garden';
@@ -760,11 +761,15 @@
     {:else if pet.awayUntil}
       <button type="button" class="btn btn-primary btn-block" id="btnComeBackNook" onclick={() => petState.comeBack()}>{t('care.comeBack', { name })}</button>
     {:else if pet.stage !== 'seedpod'}
+      {#if settings.current.style === 'cozy'}
+        <TodayPanel {name} now={clock} />
+      {:else}
       <section class="panel needs" aria-label={t('needs.label')}>
         {#each NEEDS as need (need)}
           <NeedMeter id="need-{need}" label={t(`need.${need}` as MessageKey)} value={pet.needs[need]} words={Object.fromEntries(Object.entries(NEED_WORDS[need]).map(([k, v]) => [k, t(v as MessageKey)])) as Record<'full' | 'fine' | 'low' | 'empty', string>} />
         {/each}
       </section>
+      {/if}
 
       <div class="care">
         <button type="button" class="btn btn-secondary" id="btnFeed" disabled={busy} aria-expanded={trayOpen} aria-controls="foodTray" onclick={() => (pet.asleep ? refused('asleep') : (trayOpen = !trayOpen))}>
