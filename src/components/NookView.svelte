@@ -143,7 +143,7 @@
     sayTimer = setTimeout(() => (saying = ''), ms);
   }
 
-  // ── A dish from Mise or a book from BookShelf, once you say yes.
+  // ── A dish from Mise, a book from BookShelf or Rosetta, or a postcard from Waymark, once you say yes.
   async function acceptSibling() {
     const link = ui.incoming;
     ui.incoming = null;
@@ -154,7 +154,13 @@
       move('bounce');
       chirp('chomp');
       ui.notify(t('sibling.dishAdded', { dish: link.dish, name }), 'celebrate');
-    } else {
+    } else if (link.kind === 'postcard') {
+      await worldState.addPostcard(link.city, link.country, link.date);
+      hold('happy', 1600);
+      move('hop');
+      chirp('happy');
+      ui.notify(t('sibling.postcardKept', { city: link.city, name }), 'celebrate');
+    } else if (link.kind === 'read') {
       await worldState.addBook(link.title, link.author);
       hold('happy', 1600);
       move('hop');
@@ -697,16 +703,26 @@
       {/if}
       {#if ui.incoming && pet.stage !== 'seedpod'}
         {@const link = ui.incoming}
-        <div class="found sibling-card" id="siblingCard" role="group" aria-label={t(link.kind === 'cooked' ? 'sibling.cookedLabel' : 'sibling.readLabel')}>
+        {@const card =
+          link.kind === 'cooked'
+            ? { label: t('sibling.cookedLabel'), line: t('sibling.cooked', { dish: link.dish, name }), hint: t('sibling.cookedHint', { name }), yes: t('sibling.addDish') }
+            : link.kind === 'postcard'
+              ? { label: t('sibling.postcardLabel'), line: t('sibling.postcard', { place: [link.city, link.country].filter(Boolean).join(', '), name }), hint: t('sibling.postcardHint', { name }), yes: t('sibling.keepPostcard') }
+              : link.kind === 'read'
+                ? { label: t('sibling.readLabel', { app: link.from === 'rosetta' ? 'Rosetta' : 'BookShelf' }), line: t('sibling.read', { title: link.title, name }), hint: t('sibling.readHint', { name }), yes: t('sibling.giveBook') }
+                : null}
+        {#if card}
+        <div class="found sibling-card" id="siblingCard" role="group" aria-label={card.label}>
           <span class="found-text">
-            <span class="found-name">{link.kind === 'cooked' ? t('sibling.cooked', { dish: link.dish, name }) : t('sibling.read', { title: link.title, name })}</span>
-            <span class="t-hint">{t(link.kind === 'cooked' ? 'sibling.cookedHint' : 'sibling.readHint', { name })}</span>
+            <span class="found-name">{card.line}</span>
+            <span class="t-hint">{card.hint}</span>
             <span class="visitor-actions">
-              <button type="button" class="btn btn-secondary" id="btnSiblingYes" onclick={acceptSibling}>{t(link.kind === 'cooked' ? 'sibling.addDish' : 'sibling.giveBook')}</button>
+              <button type="button" class="btn btn-secondary" id="btnSiblingYes" onclick={acceptSibling}>{card.yes}</button>
               <button type="button" class="btn btn-muted" id="btnSiblingNo" onclick={() => (ui.incoming = null)}>{t('sibling.notNow')}</button>
             </span>
           </span>
         </div>
+        {/if}
       {/if}
       {#if visit && greeting}
         {@const who = t(`visitor.${visit.id}` as MessageKey)}

@@ -209,6 +209,11 @@
     <div class="section-head"><h2>{t('settings.data')}</h2></div>
     <p class="t-hint">{t('settings.dataHint', { name: pet?.name ?? 'your nookling' })}</p>
     <p class="t-hint">{settings.current.lastBackupAt ? t('settings.lastBackup', { date: new Date(settings.current.lastBackupAt).toLocaleString(undefined, { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }) }) : t('settings.neverBackedUp')}</p>
+    {#if isNative}
+      <div class="switches">
+        <Switch id="switchAutoBackup" checked={settings.current.autoBackup} label={t('settings.autoBackup')} hint={t('settings.autoBackupHint')} onchange={(on) => settings.update({ autoBackup: on })} />
+      </div>
+    {/if}
     <div class="data-actions">
       <button type="button" class="btn btn-secondary" id="btnBackup" disabled={!pet || saving} onclick={backup}>{t('settings.backup')}</button>
       <button type="button" class="btn btn-muted" id="btnRestore" onclick={() => picker?.click()}>{t('settings.restore')}</button>

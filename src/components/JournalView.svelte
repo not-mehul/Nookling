@@ -13,6 +13,7 @@
   import { worldState } from '../state/world.svelte';
   import TreasureIcon from '../world/art/TreasureIcon.svelte';
   import { MOMENTS } from '../world/moments';
+  import { postcardColour } from '../world/siblings';
   import { TREASURES, type Treasure } from '../world/treasures';
 
   const pet = $derived(petState.pet);
@@ -67,6 +68,12 @@
     open = null;
     await petState.deletePhoto(p.id);
     ui.notify(t('journal.deleted'), 'info');
+  }
+
+  /** A YYYY-MM-DD day as local noon, for the date format. */
+  function dayTime(day: string): number {
+    const [y, m, d] = day.split('-').map(Number);
+    return new Date(y!, m! - 1, d!, 12).getTime();
   }
 </script>
 
@@ -131,6 +138,20 @@
         <p class="t-hint">{t('journal.treasuresHint')}</p>
       {:else}
         <p class="t-hint">{t('journal.noTreasures', { name })}</p>
+      {/if}
+      {#if worldState.world.postcards.length}
+        <h4 class="t-section-label postcards-head">{t('journal.postcards')}</h4>
+        <ul class="postcards" id="journalPostcards">
+          {#each worldState.world.postcards as c (c.id)}
+            <li class="postcard" aria-label={t('journal.postcardFrom', { place: [c.city, c.country].filter(Boolean).join(', ') })}>
+              <span class="stamp" style:background="var(--pet-food-{postcardColour(c)})" aria-hidden="true"></span>
+              <span class="postcard-text">
+                <b>{c.city}</b>{#if c.country}<span class="t-hint">{c.country}</span>{/if}
+                <span class="t-data">{c.date ? dateFmt(dayTime(c.date)) : dateFmt(c.at)}</span>
+              </span>
+            </li>
+          {/each}
+        </ul>
       {/if}
     </div>
 
@@ -275,6 +296,37 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
+  }
+  .postcards-head {
+    margin: var(--space-4) 0 var(--space-2);
+  }
+  .postcards {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(10rem, 100%), 1fr));
+    gap: var(--space-2);
+  }
+  .postcard {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+  }
+  .stamp {
+    flex: none;
+    width: 0.875rem;
+    height: 1.125rem;
+    margin-top: 0.2rem;
+    border-radius: 2px;
+    outline: 2px dotted var(--border-soft);
+    outline-offset: 1px;
+  }
+  .postcard-text {
+    display: grid;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .treasures {
     list-style: none;

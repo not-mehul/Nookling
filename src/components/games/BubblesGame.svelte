@@ -1,14 +1,14 @@
 <script lang="ts">
   // Bubbles: they drift up from the pet; pop them before they float away.
   import { onMount } from 'svelte';
-  import { BUBBLES_MS } from '../../domain/games';
+  import { BUBBLES_MS, CALM_PACE } from '../../domain/games';
   import { t } from '../../i18n/index.svelte';
   import Pet from '../../pet/Pet.svelte';
   import type { Form, Stage } from '../../pet/types';
   import { chirp } from '../../platform/sound';
   import { loop } from './loop';
 
-  let { stage, form, onfinish }: { stage: Stage; form: Form | null; onfinish: (hits: number, total: number) => void } = $props();
+  let { stage, form, calm = false, onfinish }: { stage: Stage; form: Form | null; calm?: boolean; onfinish: (hits: number, total: number) => void } = $props();
   interface Bubble {
     id: number;
     x: number;
@@ -22,6 +22,12 @@
   let total = 0;
   let left = $state(BUBBLES_MS);
 
+  /** Calm play ends when you say. */
+  function enough() {
+    left = 0;
+    bubbles = [];
+  }
+
   function pop(b: Bubble) {
     if (b.popped) return;
     b.popped = true;
@@ -34,7 +40,7 @@
     let id = 0;
     let spawn = 0;
     return loop((dt, now) => {
-      left = Math.max(0, left - dt);
+      if (!calm) left = Math.max(0, left - dt);
       spawn -= dt;
       if (spawn <= 0 && left > 1200) {
         total += 1;
@@ -43,7 +49,7 @@
       }
       for (const b of bubbles) {
         if (b.popped) continue;
-        b.y -= 0.00016 * dt;
+        b.y -= 0.00016 * dt * (calm ? CALM_PACE : 1);
         b.x += Math.sin(now / 500 + b.id) * 0.0002 * dt * b.drift;
       }
       bubbles = bubbles.filter((b) => b.y > -0.1);
@@ -59,7 +65,7 @@
 
 <div class="game-head">
   <span class="t-data">{t('game.popped', { hits })}</span>
-  <span class="t-data">{Math.ceil(left / 1000)}s</span>
+  {#if calm}<button type="button" class="btn btn-muted calm-done" id="calmDone" onclick={enough}>{t('game.calmDone')}</button>{:else}<span class="t-data">{Math.ceil(left / 1000)}s</span>{/if}
 </div>
 <div class="game-field">
   <div class="blower"><Pet {stage} {form} expression="happy" live={false} label="" /></div>

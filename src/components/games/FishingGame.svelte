@@ -6,7 +6,7 @@
   import type { Form, Stage } from '../../pet/types';
   import { chirp } from '../../platform/sound';
 
-  let { stage, form, onfinish }: { stage: Stage; form: Form | null; onfinish: (hits: number, total: number) => void } = $props();
+  let { stage, form, calm = false, onfinish }: { stage: Stage; form: Form | null; calm?: boolean; onfinish: (hits: number, total: number) => void } = $props();
   let cast = $state(0);
   let hits = $state(0);
   let phase = $state<'ready' | 'waiting' | 'bite' | 'caught' | 'missed'>('ready');
@@ -29,6 +29,9 @@
       bag.push(got);
       phase = 'caught';
       chirp('happy');
+    } else if (calm) {
+      // Calm play: too soon just means wait a little longer.
+      chirp('boop');
     } else {
       // Too soon: the float wasn't under yet. It swims off.
       clearTimeout(timer);
@@ -39,6 +42,8 @@
   function bite() {
     phase = 'bite';
     chirp('pop');
+    // Calm play: the float stays under until you tap.
+    if (calm) return;
     timer = setTimeout(() => {
       phase = 'missed';
     }, BITE_MS);

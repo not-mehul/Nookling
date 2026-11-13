@@ -1,5 +1,6 @@
 // Moments from the sibling apps: a dish you cooked in Mise joins the Pantry,
-// and a book you finished in BookShelf gives the pet something to read.
+// a book you finished in BookShelf or Rosetta gives the pet something to
+// read, and a place you went in Waymark sends a postcard for the Treasures.
 // Both arrive as nookling:// links (src/platform/incoming.ts) and are only
 // kept once you say yes in the Nook.
 
@@ -9,6 +10,15 @@ import { hash } from './random';
 export interface Dish {
   id: string;
   name: string;
+  at: number;
+}
+export interface Postcard {
+  id: string;
+  city: string;
+  country: string;
+  /** The day you were there, as YYYY-MM-DD, when Waymark said. */
+  date: string;
+  /** When it went into the Treasures. */
   at: number;
 }
 export interface Book {
@@ -48,4 +58,19 @@ export function addDish(dishes: readonly Dish[], name: string, now: number): Dis
 export function addBook(books: readonly Book[], title: string, author: string, now: number): Book[] {
   const same = (b: Book) => b.title.toLowerCase() === title.toLowerCase();
   return [{ title, author, at: now }, ...books.filter((b) => !same(b))].slice(0, KEEP);
+}
+
+export function postcardId(city: string, country: string, date: string): string {
+  return `postcard-${hash(`${city}|${country}|${date}`.toLowerCase()).toString(36)}`;
+}
+
+/** Puts a postcard in the Treasures, newest first; the same place on the same day once. */
+export function addPostcard(cards: readonly Postcard[], city: string, country: string, date: string, now: number): Postcard[] {
+  const id = postcardId(city, country, date);
+  return [{ id, city, country, date, at: now }, ...cards.filter((c) => c.id !== id)].slice(0, KEEP);
+}
+
+/** A colour for a postcard's stamp, steady for the place. */
+export function postcardColour(card: Postcard): FoodColour {
+  return COLOURS[hash(card.city + card.country) % COLOURS.length]!;
 }

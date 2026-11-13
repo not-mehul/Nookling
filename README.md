@@ -37,7 +37,7 @@ Nookling is a virtual pet for Android: a perfectly round ball of fluff with enor
 
 ### Play
 
-- **Nine games**, each a minute or so: Catch, Bubbles, Keep it up, Memory match, Puddle fishing, Pebble stack, Humming (rhythm), Hide and seek and Echo. Best scores are kept, and one is the game of the day, with a small extra and nothing lost by skipping it.
+- **Nine games**, each a minute or so: Catch, Bubbles, Keep it up, Memory match, Puddle fishing, Pebble stack, Humming (rhythm), Hide and seek and Echo. Best scores are kept, and one is the game of the day, with a small extra and nothing lost by skipping it. *Calm play* takes the clock away, slows everything to half speed and makes a miss cost nothing; you stop when you like. The fidget's squish, stretch and wobble (the shake-the-phone one) have buttons too.
 - **Tricks.** Swipe a pattern three times to teach it a bounce, a twirl or a somersault; it shows off what it knows.
 - **Chat.** It asks little questions in picture bubbles. Pick one of three replies; it remembers, and brings your answers up later.
 - **Fidget.** Stretch it, squish it, let go: boing.
@@ -58,7 +58,8 @@ Nookling is a virtual pet for Android: a perfectly round ball of fluff with enor
 ### Beyond the app
 
 - **A home-screen widget** with the pet, its name and how it is.
-- **The other apps.** Cook something in [Mise](https://github.com/not-mehul/Mise) and offer the dish to its Pantry; finish a book in [BookShelf](https://github.com/not-mehul/BookShelf) and give it a copy to read. Nookling always asks before keeping either.
+- **The other apps.** Cook something in [Mise](https://github.com/not-mehul/Mise) and offer the dish to its Pantry; finish a book in [BookShelf](https://github.com/not-mehul/BookShelf) or [Rosetta](https://github.com/not-mehul/Rosetta) and give it a copy to read; send a postcard from a trip in [Waymark](https://github.com/not-mehul/Waymark) for the Treasures. Nookling always asks before keeping any of them.
+- **A quiet weekly backup.** On a phone, a copy goes to Documents/Nookling once a week without a word, and the last four are kept.
 
 ### Your data
 

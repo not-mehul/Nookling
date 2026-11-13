@@ -1,13 +1,13 @@
 <script lang="ts">
   // Catch: berries fall; move the pet under them. Drag, or use the arrow keys.
   import { onMount } from 'svelte';
-  import { CATCH_MS, caught } from '../../domain/games';
+  import { CALM_PACE, CATCH_MS, caught } from '../../domain/games';
   import { t } from '../../i18n/index.svelte';
   import Pet from '../../pet/Pet.svelte';
   import type { Form, Stage } from '../../pet/types';
   import { chirp } from '../../platform/sound';
 
-  let { stage, form, onfinish }: { stage: Stage; form: Form | null; onfinish: (hits: number, total: number) => void } = $props();
+  let { stage, form, calm = false, onfinish }: { stage: Stage; form: Form | null; calm?: boolean; onfinish: (hits: number, total: number) => void } = $props();
 
   interface Berry {
     id: number;
@@ -22,6 +22,12 @@
   let total = $state(0);
   let left = $state(CATCH_MS);
   let happy = $state(false);
+
+  /** Calm play ends when you say. */
+  function enough() {
+    left = 0;
+    berries = [];
+  }
 
   function aim(e: PointerEvent) {
     const box = field?.getBoundingClientRect();
@@ -41,7 +47,7 @@
     let frame = requestAnimationFrame(function step(now) {
       const dt = Math.min(64, now - last);
       last = now;
-      left = Math.max(0, left - dt);
+      if (!calm) left = Math.max(0, left - dt);
       spawn -= dt;
       if (spawn <= 0 && left > 1500) {
         berries = [...berries, { id: ++id, x: 0.08 + Math.random() * 0.84, y: -0.05, speed: 0.00035 + Math.random() * 0.0002 }];
@@ -49,7 +55,7 @@
       }
       const next: Berry[] = [];
       for (const b of berries) {
-        const y = b.y + b.speed * dt;
+        const y = b.y + b.speed * dt * (calm ? CALM_PACE : 1);
         if (y >= 0.8) {
           total += 1;
           if (caught(b.x, petX)) {
@@ -75,7 +81,7 @@
 
 <div class="game-head">
   <span class="t-data">{t('game.caught', { hits })}</span>
-  <span class="t-data">{Math.ceil(left / 1000)}s</span>
+  {#if calm}<button type="button" class="btn btn-muted calm-done" id="calmDone" onclick={enough}>{t('game.calmDone')}</button>{:else}<span class="t-data">{Math.ceil(left / 1000)}s</span>{/if}
 </div>
 <div class="field" bind:this={field} tabindex="0" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(petX * 100)} aria-label={t('game.catchHelp')} onpointermove={aim} onpointerdown={aim} onkeydown={key}>
   {#each berries as b (b.id)}
