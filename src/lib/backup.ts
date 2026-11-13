@@ -4,6 +4,7 @@
 // there is one pet, so there is nothing to merge.
 // ============================================================
 
+import { isCoat } from '../pet/coats';
 import { strFromU8, strToU8, unzip, zip, type AsyncZippable, type Unzipped } from 'fflate';
 import type { LogEntry, Photo } from '../data/db';
 import { NEEDS, newPet, TRAITS, type Pet } from '../domain/pet';
@@ -51,6 +52,7 @@ export function normalisePet(raw: unknown): Pet | null {
     warmth: unit(r.warmth, 0),
     stage: r.stage as Pet['stage'],
     form: FORMS.includes(r.form as string) ? (r.form as Pet['form']) : null,
+    ...(isCoat(r.coat) ? { coat: r.coat } : {}),
     traits: Array.isArray(r.traits) ? (r.traits.filter((t) => TRAITS.includes(t)) as Pet['traits']).slice(0, 2) : [],
     needs,
     health: unit(r.health, 1),

@@ -24,21 +24,21 @@ const SPECKS = [
   [30, -50, 2.2],
 ] as const;
 
-/** The body: fluff, feet, belly, tufts, dust. */
+/** The body: fluff, feet, tufts, dust. */
 export function bodyArt(stage: Stage, form: Form | null, grubby: number): Art {
   const fur = P.fur;
   if (stage === "seedpod") {
     return {
       layers: [
         fill(
-          P.furShade,
+          mix(fur, P.mouth, 72),
           path(
             "M0 -46C34 -46 52 -6 52 26C52 62 30 84 0 84C-30 84 -52 62 -52 26C-52 -6 -34 -46 0 -46Z",
           ),
           { shade: "ball", name: "pod" },
         ),
         fill(
-          mix(P.furShade, P.white, 78),
+          mix(fur, P.white, 78),
           path(
             "M-50 18L-38 10L-28 20L-16 9L-4 19L8 8L20 19L32 9L42 18L51 12L52 26C52 62 30 84 0 84C-30 84 -52 62 -52 26Z",
           ),
@@ -97,14 +97,6 @@ export function bodyArt(stage: Stage, form: Form | null, grubby: number): Art {
     layers.push(line(mix(P.fur, P.ink, 50), 3.5, "M0 -70Q2 -84 -4 -94"));
   }
   layers.push(fill(fur, path(BODY_PATH), { shade: "ball", name: "body" }));
-  // A paler belly and muzzle.
-  layers.push(
-    fill(mix(fur, P.white, 72), [ellipse(0, 46, 40, 30)], {
-      clip: "body",
-      shade: "ball",
-      edge: false,
-    }),
-  );
   // Tufts: short strokes of the shade tone, so the fluff reads as fluff.
   layers.push(
     line(
@@ -116,8 +108,6 @@ export function bodyArt(stage: Stage, form: Form | null, grubby: number): Art {
         "M40 -48q-6 -8 -14 -9",
         "M-58 4q-3 8 0 16",
         "M58 4q3 8 0 16",
-        "M-24 72q4 -4 9 -4",
-        "M24 72q-4 -4 -9 -4",
       ],
       { clip: "body" },
     ),

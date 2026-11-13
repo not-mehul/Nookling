@@ -130,6 +130,16 @@ test('gives food from the Pantry, drags food to the pet, and renames it', async 
   await page.locator('#renameInput').fill('Pipkin');
   await page.locator('#btnRename').click();
   await expect(toast).toContainText('Hello, Pipkin.');
+
+  // A new coat: the pet is drawn in it at once, and it stays after a reload.
+  await expect(page.locator('[data-coat][aria-checked="true"]')).toHaveCount(1);
+  await page.locator('[data-coat="rose"]').click();
+  await expect(page.locator('[data-coat="rose"]')).toHaveAttribute('aria-checked', 'true');
+  const coat = () => page.evaluate(() => document.documentElement.style.getPropertyValue('--pet-coat'));
+  expect(await coat()).toContain('--pet-food-berry');
+  await page.reload();
+  await page.locator('#tabSettings').click();
+  await expect(page.locator('[data-coat="rose"]')).toHaveAttribute('aria-checked', 'true');
 });
 
 test('leaves the pet with a sitter and brings it home', async ({ page }) => {

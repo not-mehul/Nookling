@@ -2,6 +2,7 @@
 // every half minute while open), applies care, and saves after every change.
 // The rules themselves are in src/domain/pet.ts.
 
+import { coatOf, pickCoat, type CoatId } from '../pet/coats';
 import { db, type LogEntry, type Photo } from '../data/db';
 import type { BackupData } from '../lib/backup';
 import { goodDay } from '../domain/delights';
@@ -70,7 +71,7 @@ class PetState {
 
   /** Starts a new seedpod. */
   async adopt(name: string, now = Date.now()): Promise<void> {
-    const pet = newPet(uid(), name.trim().slice(0, 24) || 'Nookling', now, rollTraits());
+    const pet = newPet(uid(), name.trim().slice(0, 24) || 'Nookling', now, rollTraits(), pickCoat());
     await this.save(pet, [{ kind: 'named', at: now, detail: pet.name }]);
   }
 
@@ -166,6 +167,13 @@ class PetState {
     const clean = name.trim().slice(0, 24);
     if (!pet || !clean || clean === pet.name) return;
     await this.save({ ...pet, name: clean }, [{ kind: 'named', at: Date.now(), detail: clean }]);
+  }
+
+  /** A new coat colour. */
+  async recolour(coat: CoatId): Promise<void> {
+    const pet = this.pet;
+    if (!pet || coatOf(pet) === coat) return;
+    await this.save({ ...pet, coat }, []);
   }
 
   /** Keeps a picture in the album. */

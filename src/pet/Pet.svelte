@@ -55,7 +55,8 @@
   }: Props = $props();
   const BEHIND: readonly MomentProp[] = ['sunbeam', 'puddle', 'cloud'];
 
-  const fur = $derived(`var(${furToken(stage, form, unwell)})`);
+  // Its coat (set on the page from the pet's data, src/pet/coats.ts), unless it is unwell.
+  const fur = $derived(unwell ? 'var(--pet-fur-unwell)' : `var(--pet-coat, var(${furToken(stage, form, false)}))`);
   const scale = $derived(stage === 'sprout' ? 0.74 : 1);
   const glowLevel = $derived(clamp(glow, 0, 1) * (stage === 'grown' && form === 'lamplighter' ? 1 : 0.8));
 

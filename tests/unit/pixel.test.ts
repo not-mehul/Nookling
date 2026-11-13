@@ -246,3 +246,14 @@ describe("pixel art", () => {
     expect([...fills].every((f) => f.includes("--border-soft"))).toBe(true);
   });
 });
+
+describe('coats', () => {
+  it('picks one at random, keeps an older pet’s the same every time, and draws with it', async () => {
+    const { COATS, coatOf, pickCoat, coatColour } = await import('../../src/pet/coats');
+    expect(pickCoat(() => 0)).toBe(COATS[0]!.id);
+    expect(pickCoat(() => 0.999)).toBe(COATS.at(-1)!.id);
+    expect(coatOf({ id: 'abc' })).toBe(coatOf({ id: 'abc' }));
+    expect(coatOf({ id: 'abc', coat: 'rose' })).toBe('rose');
+    for (const c of COATS) expect(coatColour(c.id)).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(\s*\d/i);
+  });
+});

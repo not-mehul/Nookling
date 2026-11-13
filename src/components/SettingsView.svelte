@@ -85,6 +85,7 @@
     { value: 'dark', key: 'settings.themeDusk' },
     { value: 'light', key: 'settings.themeDawn' },
   ];
+  import { COATS, coatOf, pickCoat } from '../pet/coats';
 </script>
 
 <div id="viewSettings" role="tabpanel" aria-labelledby="tabSettings">
@@ -117,6 +118,23 @@
         </label>
         <button type="submit" class="btn btn-muted" id="btnRename" disabled={!newName.trim() || newName.trim() === pet.name}>{t('settings.rename')}</button>
       </form>
+      <span class="t-field-label coat-label" id="coatLabel">{t('settings.coat')}</span>
+      <div class="coats" role="radiogroup" aria-labelledby="coatLabel">
+        {#each COATS as c (c.id)}
+          <button
+            type="button"
+            role="radio"
+            class="coat dd-pressable"
+            data-coat={c.id}
+            aria-checked={coatOf(pet) === c.id}
+            aria-label={t(`coat.${c.id}` as MessageKey)}
+            title={t(`coat.${c.id}` as MessageKey)}
+            style:--swatch={c.colour}
+            onclick={() => void petState.recolour(c.id)}
+          ></button>
+        {/each}
+        <button type="button" class="btn btn-muted" id="btnCoatRandom" onclick={() => void petState.recolour(pickCoat())}>{t('settings.coatRandom')}</button>
+      </div>
     </div>
   {/if}
   <div class="panel">
@@ -245,5 +263,34 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3);
     margin-bottom: var(--space-3);
+  }
+  .coat-label {
+    display: block;
+    margin-top: var(--space-4);
+  }
+  .coats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  /* A square swatch with stepped corners, in the pixel idiom. */
+  .coat {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: var(--swatch);
+    clip-path: polygon(0 6px, 6px 6px, 6px 0, calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px));
+    box-shadow:
+      inset 0 -6px 0 color-mix(in oklab, var(--swatch) 72%, var(--pet-mouth)),
+      inset 0 6px 0 color-mix(in oklab, var(--swatch) 60%, var(--pet-eye));
+    cursor: pointer;
+  }
+  .coat[aria-checked='true'] {
+    box-shadow:
+      inset 0 0 0 4px var(--accent-bright),
+      inset 0 -10px 0 color-mix(in oklab, var(--swatch) 72%, var(--pet-mouth));
   }
 </style>

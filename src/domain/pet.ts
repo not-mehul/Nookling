@@ -7,6 +7,7 @@
 // minute while open, and the notification scheduler simulates ahead.
 // ============================================================
 
+import type { CoatId } from '../pet/coats';
 import { clockMinutes } from './settings';
 import type { Food } from './foods';
 import type { Form, Stage } from '../pet/types';
@@ -56,6 +57,8 @@ export interface Pet {
   warmth: number;
   stage: Stage;
   form: Form | null;
+  /** The colour of its fur (src/pet/coats.ts). Older pets have none and get one from their id. */
+  coat?: CoatId;
   traits: Trait[];
   needs: Needs;
   /** Hidden. Falls only while two or more needs sit below a fifth. */
@@ -167,10 +170,11 @@ const TRAIT_RATES: Record<Trait, Partial<Needs>> = {
   chatty: { mood: 1.1 },
 };
 
-export function newPet(id: string, name: string, now: number, traits: Trait[]): Pet {
+export function newPet(id: string, name: string, now: number, traits: Trait[], coat?: CoatId): Pet {
   return {
     id,
     name,
+    ...(coat ? { coat } : {}),
     createdAt: now,
     hatchedAt: null,
     warmth: 0,
